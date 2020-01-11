@@ -1,0 +1,9 @@
+{
+  "name": "battlejs",
+  "version": "0.0.1",
+  "main": "dist/index.html",
+  "scripts": {},
+  "devDependencies": {
+    "typescript": "^3.7.4"
+  }
+}
