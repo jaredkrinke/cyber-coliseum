@@ -40,11 +40,11 @@ namespace Battle {
         return Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
     }
     
-    interface Bounds extends Position {
+    interface Circle extends Position {
         radius: number;
     }
     
-    interface Collidable extends Bounds {
+    interface Collidable extends Circle {
         collisionClass: CollisionClass;
     
         /** Called on collisionClass.solid when colliding with collisionClass.massless */
@@ -198,9 +198,17 @@ namespace Battle {
         angle: number;
         speed: number;
     }
+
+    interface Bounds {
+        xMin: number;
+        xMax: number;
+        yMin: number;
+        yMax: number;
+    }
     
     interface Environment {
-        enemies: Bounds[];
+        bounds: Bounds;
+        enemies: Circle[];
         enemyProjectiles: ProjectileState[];
     }
     
@@ -231,7 +239,7 @@ namespace Battle {
         return x * x;
     }
 
-    function circleIntersectsLine(circle: Bounds, line: Line): boolean {
+    function circleIntersectsLine(circle: Circle, line: Line): boolean {
         const cosine = Math.cos(line.angle);
         const sine = Math.sin(line.angle)
         const x1 = line.x - circle.x;
@@ -243,6 +251,8 @@ namespace Battle {
     }
 
     class BotDodger extends Ship {
+        private angleOffset = Math.PI / 2;
+
         constructor(x: number, y: number) {
             super(x, y, 0);
         }
@@ -264,7 +274,14 @@ namespace Battle {
 
             if (closestProjectile) {
                 const angleToProjectile = Math.atan2(closestProjectile.y - this.y, closestProjectile.x - this.x);
-                this.moveAngle = angleToProjectile + Math.PI / 2;
+                this.moveAngle = angleToProjectile + this.angleOffset;
+                const nextX = this.x + Math.cos(this.moveAngle);
+                const nextY = this.y + Math.sin(this.moveAngle);
+                if (nextX < environment.bounds.xMin || nextX > environment.bounds.xMax || nextY < environment.bounds.yMin || nextY > environment.bounds.yMax) {
+                    this.angleOffset = -this.angleOffset;
+                    this.moveAngle = angleToProjectile + this.angleOffset;
+                }
+
                 this.move = true;
             } else {
                 this.move = false;
@@ -277,8 +294,16 @@ namespace Battle {
         new BotDodger(10 * Math.random(), 20 * Math.random() - 10),
     ];
 
+    const environmentBounds: Bounds = {
+        xMin: -maxDistance,
+        xMax: maxDistance,
+        yMin: -maxDistance,
+        yMax: maxDistance,
+    };
+
     function getEnvironment(self: Entity): Environment {
         return {
+            bounds: environmentBounds,
             enemies: entities.filter(e => e !== self && e.collisionClass === CollisionClass.solid),
             enemyProjectiles: entities
                 .filter(e => isProjectile(e) && isMovingEntity(e) && e.source !== self)
