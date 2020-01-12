@@ -2,7 +2,6 @@ const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const context = canvas.getContext("2d");
 
 // TODO: Update scaling, transformation on window "resize" event
-
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
@@ -101,10 +100,6 @@ class MovingEntity implements Entity {
     }
 }
 
-function isProjectile(a: object): a is Projectile {
-    return "damage" in a;
-}
-
 class Projectile extends MovingEntity {
     constructor(
         x: number,
@@ -117,6 +112,10 @@ class Projectile extends MovingEntity {
     ) {
         super(CollisionClass.massless, x, y, radius, color, speed, moveAngle, moveAngle, true);
     }
+}
+
+function isProjectile(a: object): a is Projectile {
+    return "damage" in a;
 }
 
 const shotRadius = 0.1;
