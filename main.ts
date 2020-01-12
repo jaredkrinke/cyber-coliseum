@@ -31,7 +31,7 @@ interface Collidable {
 interface Entity extends Collidable {
     dead: boolean;
 
-    update(): void;
+    update(): Entity[] | null;
     draw(context: CanvasRenderingContext2D): void;
 }
 
@@ -54,22 +54,24 @@ class MovingEntity implements Entity {
         protected move: boolean) {
     }
 
-    protected updateInternal() {}
+    protected updateInternal(): Entity[] | null { return null; }
+    protected collidedInternal(other: Collidable) {}
     protected drawInternal() { }
 
     public collided(other: Collidable) {
         if (isEntity(other)) {
             other.dead = true;
+            this.collidedInternal(other);
         }
     }
 
     public update() {
-        this.updateInternal();
-
         if (this.move) {
             this.x += this.speed * Math.cos(this.moveAngle);
             this.y += this.speed * Math.sin(this.moveAngle);
         }
+
+        return this.updateInternal();
     }
 
     public draw(context: CanvasRenderingContext2D) {
@@ -89,6 +91,10 @@ class MovingEntity implements Entity {
     }
 }
 
+function isProjectile(a: object): a is Projectile {
+    return "damage" in a;
+}
+
 class Projectile extends MovingEntity {
     constructor(
         x: number,
@@ -103,15 +109,45 @@ class Projectile extends MovingEntity {
     }
 }
 
+const shotRadius = 0.1;
 class Shot extends Projectile {
     constructor(x: number, y: number, moveAngle: number) {
-        super(x, y, 0.1, "red", moveAngle, 0.5, 10);
+        super(x, y, shotRadius, "red", moveAngle, 0.5, 10);
     }
 }
 
 class Ship extends MovingEntity {
+    private shootTimer = 0;
+    private health = 100;
+
+    protected shoot = true;
+    protected shootPeriod = 10;
+
     constructor(x: number, y: number, moveAngle: number) {
         super(CollisionClass.solid, x, y, 1, "gray", 0.1, moveAngle, moveAngle, true);
+    }
+
+    protected updateInternal(): Entity[] | null {
+        let result = null;
+        if (this.shoot && this.shootTimer <= 0) {
+            this.shootTimer = this.shootPeriod;
+
+            let x = this.x + (this.radius + shotRadius) * 1.001 * Math.cos(this.aimAngle);
+            let y = this.y + (this.radius + shotRadius) * 1.001 * Math.sin(this.aimAngle);
+
+            result = [new Shot(x, y, this.aimAngle)];
+        } else if (this.shootTimer > 0) {
+            this.shootTimer--;
+        }
+        return result;
+    }
+
+    protected collidedInternal(other: Collidable) {
+        if (isProjectile(other)) {
+            this.health -= other.damage;
+            this.dead = (this.health <= 0);
+            // TODO: Explosion?
+        }
     }
 
     protected drawInternal() {
@@ -125,8 +161,8 @@ class Ship extends MovingEntity {
 }
 
 let entities = [
-    new Ship(-3, 0.2, 0),
-    new Ship(3, 0, Math.PI),
+    new Ship(-10, 0, 0),
+    new Ship(10, 0, Math.PI),
 ];
 
 function getCollisionOverlap(a: Collidable, b: Collidable) {
@@ -170,7 +206,16 @@ function findAndResolveCollisions(entities: Entity[]) {
 }
 
 function update() {
-    entities.forEach(a => a.update());
+    let newEntities = [];
+    for (const e of entities) {
+        const result = e.update();
+        if (result) {
+            newEntities = newEntities.concat(result);
+        }
+    }
+
+    entities = entities.concat(newEntities);
+
     findAndResolveCollisions(entities);
 
     entities = entities.filter(e => !e.dead);
