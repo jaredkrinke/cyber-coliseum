@@ -6,9 +6,19 @@ const context = canvas.getContext("2d");
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-const scale = canvas.width / 32;
-const width = 32;
-const height = canvas.height / scale;
+let scale: number;
+let width: number;
+let height: number;
+if (canvas.width < canvas.height) {
+    scale = canvas.width / 32;
+    width = 32;
+    height = canvas.height / scale;
+} else {
+    scale = canvas.height / 32;
+    height = 32;
+    width = canvas.width / scale;
+}
+
 context.scale(scale, -scale);
 context.translate(width / 2, -height / 2);
 
@@ -205,7 +215,22 @@ function findAndResolveCollisions(entities: Entity[]) {
     }
 }
 
+const maxDistance = 16;
+function enforceBounds(entities: Entity[]) {
+    for (const e of entities) {
+        if (isProjectile(e)) {
+            if (e.x < -maxDistance || e.x > maxDistance || e.y < -maxDistance || e.y > maxDistance) {
+                e.dead = true;
+            }
+        } else {
+            e.x = Math.max(-maxDistance, Math.min(maxDistance, e.x));
+            e.y = Math.max(-maxDistance, Math.min(maxDistance, e.y));
+        }
+    }
+}
+
 function update() {
+    // Update entities (and add any new ones they create)
     let newEntities = [];
     for (const e of entities) {
         const result = e.update();
@@ -213,23 +238,29 @@ function update() {
             newEntities = newEntities.concat(result);
         }
     }
-
     entities = entities.concat(newEntities);
 
     findAndResolveCollisions(entities);
+    enforceBounds(entities);
 
     entities = entities.filter(e => !e.dead);
+
+    if (entities.length <= 0) {
+        clearInterval(updateToken);
+    }
 }
 
 function draw() {
-    context.fillStyle = "black";
+    context.fillStyle = "gray";
     context.fillRect(-width / 2, -height / 2, width, height);    
+    context.fillStyle = "black";
+    context.fillRect(-maxDistance, -maxDistance, maxDistance * 2, maxDistance * 2);
 
     entities.forEach(a => a.draw(context));
 }
 
-const fps = 10;
-setInterval(function () {
+const fps = 30;
+let updateToken = setInterval(function () {
     update();
     requestAnimationFrame(draw);
 }, 1000 / fps);
