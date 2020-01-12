@@ -218,7 +218,28 @@ namespace Battle {
             }
         }
     }
-    
+
+    interface Line {
+        x: number;
+        y: number;
+        angle: number;
+    }
+
+    function square(x: number) {
+        return x * x;
+    }
+
+    function circleIntersectsLine(circle: Bounds, line: Line): boolean {
+        const cosine = Math.cos(line.angle);
+        const sine = Math.sin(line.angle)
+        const x1 = line.x - circle.x;
+        const y1 = line.y - circle.y;
+        const x2 = x1 + cosine;
+        const y2 = y1 + sine;
+        const discriminant = square(circle.radius) * (square(cosine) + square(sine)) - square(x1 * y2 - x2 * y1);
+        return discriminant >= 0;
+    }
+
     class BotDodger extends Ship {
         constructor(x: number, y: number) {
             super(x, y, 0);
@@ -228,16 +249,8 @@ namespace Battle {
             let closestProjectile;
             let minimumDistance = 1000;
 
-            // Projectiles headed towards us
-            const projectiles = environment.enemyProjectiles.filter((e) => {
-                let interesting = false;
-                const nextPosition = {
-                    x: e.x + e.speed * Math.cos(e.angle),
-                    y: e.y + e.speed * Math.sin(e.angle),
-                };
-
-                return getDistance(this, nextPosition) < getDistance(this, e);
-            });
+            // Projectiles that will hit us
+            const projectiles = environment.enemyProjectiles.filter((e) => circleIntersectsLine(this, e));
 
             for (const p of projectiles) {
                 const distance = getDistance(this, p);
