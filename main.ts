@@ -69,10 +69,10 @@ namespace Battle {
             public y: number,
             public radius: number,
             private color: string,
-            private speed: number,
-            protected moveAngle: number,
+            public speed: number,
+            public moveAngle: number,
             protected aimAngle: number,
-            protected move: boolean) {
+            public move: boolean) {
         }
     
         protected updateInternal(): Entity[] | null { return null; }
@@ -110,6 +110,10 @@ namespace Battle {
             
             context.restore();
         }
+    }
+
+    function isMovingEntity(a: object): a is MovingEntity {
+        return "moveAngle" in a;
     }
     
     class Projectile extends MovingEntity {
@@ -187,10 +191,15 @@ namespace Battle {
             context.stroke();
         }
     }
+
+    interface ProjectileState extends Position {
+        angle: number;
+        speed: number;
+    }
     
     interface Environment {
         enemies: Bounds[];
-        enemyProjectiles: Position[];
+        enemyProjectiles: ProjectileState[];
     }
     
     // Bots
@@ -218,7 +227,19 @@ namespace Battle {
         protected think(environment: Environment) {
             let closestProjectile;
             let minimumDistance = 1000;
-            for (const p of environment.enemyProjectiles) {
+
+            // Projectiles headed towards us
+            const projectiles = environment.enemyProjectiles.filter((e) => {
+                let interesting = false;
+                const nextPosition = {
+                    x: e.x + e.speed * Math.cos(e.angle),
+                    y: e.y + e.speed * Math.sin(e.angle),
+                };
+
+                return getDistance(this, nextPosition) < getDistance(this, e);
+            });
+
+            for (const p of projectiles) {
                 const distance = getDistance(this, p);
                 if (distance < minimumDistance) {
                     minimumDistance = distance;
@@ -244,7 +265,14 @@ namespace Battle {
     function getEnvironment(self: Entity): Environment {
         return {
             enemies: entities.filter(e => e !== self && e.collisionClass === CollisionClass.solid),
-            enemyProjectiles: entities.filter(e => isProjectile(e) && e.source !== self),
+            enemyProjectiles: entities
+                .filter(e => isProjectile(e) && isMovingEntity(e) && e.source !== self)
+                .map<ProjectileState>(e => ({
+                    x: e.x,
+                    y: e.y,
+                    angle: e.moveAngle,
+                    speed: e.move ? e.speed : 0,
+                })),
         };
     }
     
