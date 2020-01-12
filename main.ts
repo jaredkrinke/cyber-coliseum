@@ -12,49 +12,54 @@ const height = canvas.height / scale;
 context.scale(scale, -scale);
 context.translate(width / 2, -height / 2);
 
-interface Entity {
+interface Bounds {
     x: number;
     y: number;
     radius: number;
-    
-    update(): void;
+}
 
+interface Entity {
+    getBounds(): Bounds;
+    update(): void;
     draw(context: CanvasRenderingContext2D): void;
 }
 
 class MovingEntity implements Entity {
-    private dx = 0;
-    private dy = 0;
-
     constructor(
         public x: number,
         public y: number,
         public radius: number,
         private color: string,
-        protected a: number,
-        protected da: number,
-        protected acceleration: number) {
+        private speed: number,
+        protected moveAngle: number,
+        protected aimAngle: number,
+        protected move: boolean) {
     }
 
     protected updateInternal() {}
     protected drawInternal() { }
 
+    public getBounds() {
+        return {
+            x: this.x,
+            y: this.y,
+            radius: this.radius,
+        };
+    }
+
     public update() {
-        this.dx += this.acceleration * Math.cos(this.a);
-        this.dy += this.acceleration * Math.sin(this.a);
-
-        this.x += this.dx;
-        this.y += this.dy;
-
-        this.a += this.da;
-
         this.updateInternal();
+
+        if (this.move) {
+            this.x += this.speed * Math.cos(this.moveAngle);
+            this.y += this.speed * Math.sin(this.moveAngle);
+        }
     }
 
     public draw(context: CanvasRenderingContext2D) {
         context.save();
         context.translate(this.x, this.y);
-        context.rotate(this.a);
+        context.rotate(this.aimAngle);
 
         context.fillStyle = this.color;
         context.beginPath();
@@ -68,9 +73,9 @@ class MovingEntity implements Entity {
     }
 }
 
-class Bot extends MovingEntity {
-    constructor(x: number, y: number, a: number) {
-        super(x, y, 1, "gray", a, 0.1, 0.0001);
+class Ship extends MovingEntity {
+    constructor(x: number, y: number, moveAngle: number) {
+        super(x, y, 1, "gray", 0.1, moveAngle, moveAngle, true);
     }
 
     protected drawInternal() {
@@ -83,24 +88,20 @@ class Bot extends MovingEntity {
     }
 }
 
-const bots = [
-    new Bot(-10, 0, 0),
-    new Bot(10, 0, Math.PI),
+const ships = [
+    new Ship(-10, 0, 0),
+    new Ship(10, 0, Math.PI),
 ];
 
 function update() {
-    for (let bot of bots) {
-        bot.update();
-    }
+    ships.forEach(a => a.update());
 }
 
 function draw() {
     context.fillStyle = "black";
     context.fillRect(-width / 2, -height / 2, width, height);    
 
-    for (let bot of bots) {
-        bot.draw(context);
-    }
+    ships.forEach(a => a.draw(context));
 }
 
 const fps = 10;
