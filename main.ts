@@ -1,6 +1,8 @@
 namespace Battle {
     const canvas = document.getElementById("canvas") as HTMLCanvasElement;
     const context = canvas.getContext("2d");
+
+    const maxDistance = 10;
     
     // TODO: Update scaling, transformation on window "resize" event
     canvas.width = window.innerWidth;
@@ -10,12 +12,12 @@ namespace Battle {
     let width: number;
     let height: number;
     if (canvas.width < canvas.height) {
-        scale = canvas.width / 32;
-        width = 32;
+        scale = canvas.width / (2 * maxDistance);
+        width = (2 * maxDistance);
         height = canvas.height / scale;
     } else {
-        scale = canvas.height / 32;
-        height = 32;
+        scale = canvas.height / (2 * maxDistance);
+        height = (2 * maxDistance);
         width = canvas.width / scale;
     }
     
@@ -150,7 +152,7 @@ namespace Battle {
         protected shootPeriod = 10;
     
         constructor(x: number, y: number, moveAngle: number) {
-            super(CollisionClass.solid, x, y, 1, "gray", 0.1, moveAngle, moveAngle, false);
+            super(CollisionClass.solid, x, y, 1, "gray", 0.2, moveAngle, moveAngle, false);
         }
     
         protected think?(environment: Environment): void {}
@@ -271,8 +273,8 @@ namespace Battle {
     }
     
     let entities = [
-        new BotTurret(-10, 5),
-        new BotDodger(10, 0),
+        new BotTurret(-10 * Math.random(), 20 * Math.random() - 10),
+        new BotDodger(10 * Math.random(), 20 * Math.random() - 10),
     ];
 
     function getEnvironment(self: Entity): Environment {
@@ -329,7 +331,6 @@ namespace Battle {
         }
     }
     
-    const maxDistance = 16;
     function enforceBounds(entities: Entity[]) {
         for (const e of entities) {
             if (isProjectile(e)) {
