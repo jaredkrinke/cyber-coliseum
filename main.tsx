@@ -198,6 +198,21 @@ namespace Battle {
         yMin: number;
         yMax: number;
     }
+
+    // TODO: Pass constants to initialization function?
+    interface BotState {
+        // "Immutable"
+        x: number;
+        y: number;
+        radius: number;
+
+        // Mutable
+        moveAngle: number;
+        aimAngle: number;
+        move: boolean;
+        shoot: boolean;
+        // TODO: Charge state? Max speed?
+    }
     
     interface Environment {
         bounds: Bounds;
@@ -206,12 +221,40 @@ namespace Battle {
     }
     
     // Bots
-    class BotTurret extends Ship {
-        constructor(x: number, y: number) {
+    type BotThinkHandler = (this: BotState, environment: Environment) => void;
+    type BotInitializer = () => BotThinkHandler;
+
+    class Bot extends Ship {
+        private thinkHandler: BotThinkHandler;
+
+        constructor (x: number, y: number, initialize: BotInitializer) {
             super(x, y, 0);
+
+            this.thinkHandler = initialize();
         }
-    
+
         protected think(environment: Environment) {
+            const state: BotState = {
+                x: this.x,
+                y: this.y,
+                radius: this.radius,
+                aimAngle: this.aimAngle,
+                moveAngle: this.moveAngle,
+                move: this.move,
+                shoot: this.shoot,
+            };
+
+            this.thinkHandler.call(state, environment);
+
+            this.move = state.move;
+            this.shoot = state.shoot;
+            this.aimAngle = state.aimAngle;
+            this.moveAngle = state.moveAngle;
+        }
+    }
+
+    const BehaviorTurret: BotInitializer = () => {
+        return function (environment: Environment) {
             if (environment.enemies.length > 0) {
                 const enemy = environment.enemies[0];
                 this.aimAngle = Math.atan2(enemy.y - this.y, enemy.x - this.x);
@@ -219,8 +262,8 @@ namespace Battle {
             } else {
                 this.shoot = false;
             }
-        }
-    }
+        };
+    };
 
     interface Line {
         x: number;
@@ -248,14 +291,10 @@ namespace Battle {
         return discriminant >= 0;
     }
 
-    class BotDodger extends Ship {
-        private angleOffset = Math.PI / 2;
+    const BehaviorDodger: BotInitializer = () => {
+        let angleOffset = Math.PI / 2;
 
-        constructor(x: number, y: number) {
-            super(x, y, 0);
-        }
-    
-        protected think(environment: Environment) {
+        return function (environment: Environment) {
             let closestProjectile: ProjectileState;
             let minimumDistance = 1000;
 
@@ -272,20 +311,20 @@ namespace Battle {
 
             if (closestProjectile) {
                 const angleToProjectile = Math.atan2(closestProjectile.y - this.y, closestProjectile.x - this.x);
-                this.moveAngle = angleToProjectile + this.angleOffset;
+                this.moveAngle = angleToProjectile + angleOffset;
                 const nextX = this.x + Math.cos(this.moveAngle);
                 const nextY = this.y + Math.sin(this.moveAngle);
                 if (nextX < environment.bounds.xMin || nextX > environment.bounds.xMax || nextY < environment.bounds.yMin || nextY > environment.bounds.yMax) {
-                    this.angleOffset = -this.angleOffset;
-                    this.moveAngle = angleToProjectile + this.angleOffset;
+                    angleOffset = -angleOffset;
+                    this.moveAngle = angleToProjectile + angleOffset;
                 }
 
                 this.move = true;
             } else {
                 this.move = false;
             }
-        }
-    }
+        };
+    };
 
     class Coliseum extends React.Component<{width: number, height: number}> {
         private static readonly fps = 30;
@@ -309,8 +348,8 @@ namespace Battle {
             super(props);
 
             this.entities = [
-                new BotTurret(-10 * Math.random(), 20 * Math.random() - 10),
-                new BotDodger(10 * Math.random(), 20 * Math.random() - 10),
+                new Bot(-10 * Math.random(), 20 * Math.random() - 10, BehaviorTurret),
+                new Bot(10 * Math.random(), 20 * Math.random() - 10, BehaviorDodger),
             ];
         }
 
