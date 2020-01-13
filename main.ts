@@ -70,7 +70,8 @@ namespace Battle {
             public x: number,
             public y: number,
             public radius: number,
-            private color: string,
+            protected strokeColor: string,
+            protected fillColor: string;
             public speed: number,
             public moveAngle: number,
             protected aimAngle: number,
@@ -102,10 +103,13 @@ namespace Battle {
             context.translate(this.x, this.y);
             context.rotate(this.aimAngle);
     
-            context.strokeStyle = this.color
             context.beginPath();
             context.arc(0, 0, this.radius, 0, Math.PI * 2, true);
             context.closePath();
+
+            context.fillStyle = this.fillColor;
+            context.strokeStyle = this.strokeColor;
+            context.fill();
             context.stroke();
     
             this.drawInternal();
@@ -129,7 +133,7 @@ namespace Battle {
             speed: number,
             public damage: number
         ) {
-            super(CollisionClass.massless, x, y, radius, color, speed, moveAngle, moveAngle, true);
+            super(CollisionClass.massless, x, y, radius, color, color, speed, moveAngle, moveAngle, true);
         }
     }
     
@@ -152,12 +156,15 @@ namespace Battle {
         protected shootPeriod = 10;
     
         constructor(x: number, y: number, moveAngle: number) {
-            super(CollisionClass.solid, x, y, 1, "gray", 0.2, moveAngle, moveAngle, false);
+            super(CollisionClass.solid, x, y, 1, "lightgray", "rgb(128, 128, 128)", 0.2, moveAngle, moveAngle, false);
         }
     
         protected think?(environment: Environment): void {}
     
         protected updateInternal(): Entity[] | null {
+            const value = 128 * (this.health / 100);
+            this.fillColor = `rgb(${value}, ${value}, ${value})`;
+
             if (this.think) {
                 this.think(getEnvironment(this));
             }
@@ -185,7 +192,7 @@ namespace Battle {
         }
     
         protected drawInternal() {
-            context.strokeStyle = "lightgray";
+            context.strokeStyle = "white";
             context.beginPath();
             context.moveTo(0, 0);
             context.lineTo(1, 0);
