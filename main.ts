@@ -257,7 +257,7 @@ namespace Battle {
         }
     
         protected think(environment: Environment) {
-            let closestProjectile;
+            let closestProjectile: ProjectileState;
             let minimumDistance = 1000;
 
             // Projectiles that will hit us
