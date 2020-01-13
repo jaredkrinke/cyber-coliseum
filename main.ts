@@ -102,11 +102,11 @@ namespace Battle {
             context.translate(this.x, this.y);
             context.rotate(this.aimAngle);
     
-            context.fillStyle = this.color;
+            context.strokeStyle = this.color
             context.beginPath();
             context.arc(0, 0, this.radius, 0, Math.PI * 2, true);
             context.closePath();
-            context.fill();
+            context.stroke();
     
             this.drawInternal();
             
@@ -185,7 +185,6 @@ namespace Battle {
         }
     
         protected drawInternal() {
-            context.lineWidth = 1 / 10;
             context.strokeStyle = "lightgray";
             context.beginPath();
             context.moveTo(0, 0);
@@ -396,6 +395,7 @@ namespace Battle {
         context.fillStyle = "black";
         context.fillRect(-maxDistance, -maxDistance, maxDistance * 2, maxDistance * 2);
     
+        context.lineWidth = 0.1;
         entities.forEach(a => a.draw(context));
     }
     
