@@ -287,15 +287,6 @@ namespace Battle {
         }
     }
 
-    function getCollisionOverlap(a: Collidable, b: Collidable) {
-        const centerDistance = getDistance(a, b);
-        const overlapDistance = a.radius + b.radius - centerDistance;
-        if (overlapDistance > 0) {
-            return overlapDistance;
-        }
-        return 0;
-    }
-
     class Coliseum extends React.Component<{width: number, height: number}> {
         private static readonly fps = 30;
         private static readonly maxDistance = 10;
@@ -321,6 +312,15 @@ namespace Battle {
                 new BotTurret(-10 * Math.random(), 20 * Math.random() - 10),
                 new BotDodger(10 * Math.random(), 20 * Math.random() - 10),
             ];
+        }
+
+        private static getCollisionOverlap(a: Collidable, b: Collidable): number {
+            const centerDistance = getDistance(a, b);
+            const overlapDistance = a.radius + b.radius - centerDistance;
+            if (overlapDistance > 0) {
+                return overlapDistance;
+            }
+            return 0;
         }
 
         private visible(): boolean {
@@ -369,7 +369,7 @@ namespace Battle {
                     // Loop through all other entities and check for collisions
                     for (const b of this.entities) {
                         if (a !== b) {
-                            const overlapDistance = getCollisionOverlap(a, b);
+                            const overlapDistance = Coliseum.getCollisionOverlap(a, b);
                             if (overlapDistance > 0) {
                                 if (b.collisionClass === CollisionClass.solid) {
                                     // Collision with solid; resolve
