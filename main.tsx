@@ -60,6 +60,7 @@ namespace Battle {
             protected strokeColor: string | null,
             protected fillColor: string,
             public speed: number,
+            // TODO: Rename all these to moveDirection, shootDirection, etc. (here and in HTML)
             public moveAngle: number,
             protected aimAngle: number,
             public move: boolean) {
@@ -507,6 +508,7 @@ namespace Battle {
                 this.renderingContext.translate(this.width / 2, -this.height / 2);
 
                 this.start();
+                this.canvas.current.scrollIntoView();
             }
         }
 
@@ -598,18 +600,19 @@ function think(self, environment) {
                 const index = parseInt(this.inputEnemy.current.value);
                 const left = potentialOpponents[index].initializer;
                 const right = this.createScriptedBot();
-                ReactDOM.render(<Coliseum width={400} height={400} left={left} right={right} />, document.getElementById("outputRoot"));
+                const width = document.getElementById("outputRoot").clientWidth;
+                ReactDOM.render(<Coliseum width={width} height={400} left={left} right={right} />, document.getElementById("outputRoot"));
         };
 
         public render() {
-            return <div>
-                Code:<br />
-                <textarea cols={80} rows={25} ref={this.inputCode}>{templateCode}</textarea><br />
-                Enemy: <select ref={this.inputEnemy}>{potentialOpponents.map((o, index) => <option value={index.toString()}>{o.name}</option>)}
-                </select><br />
-                <button onClick={this.runSimulation}>Run simulation</button><br />
+            return <>
+                Code:
+                <textarea cols={80} rows={25} ref={this.inputCode}>{templateCode}</textarea>
+                Enemy:
+                <select ref={this.inputEnemy}>{potentialOpponents.map((o, index) => <option value={index.toString()}>{o.name}</option>)}</select>
+                <button onClick={this.runSimulation}>Run simulation</button>
                 {this.state.error ? <p className="error">{this.state.error.toString()}</p> : null}
-            </div>;
+            </>;
         }
     }
 

@@ -1,14 +1,69 @@
 <!DOCTYPE html>
 <html>
     <head>
-        <title>TODO</title>
+        <title>Cyber Coliseum</title>
         <link rel="stylesheet" href="main.css" />
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/react/16.12.0/umd/react.production.min.js" integrity="sha256-Ef0vObdWpkMAnxp39TYSLVS/vVUokDE8CDFnx7tjY6U=" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/react/16.11.0/umd/react.production.min.js" integrity="sha256-Izg5jrIWaZS6OBjRfe9AN/kiiIVYFTgcKukJsfK8Or0=" crossorigin="anonymous"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/16.11.0/umd/react-dom.production.min.js" integrity="sha256-zuSDvIPhgPCvDFw3HdbA58QUOOGxPbs4llUvBOPxvjY=" crossorigin="anonymous"></script>
     </head>
     <body>
+        <div class="info">
+            <h1>Cyber Coliseum</h1>
+            <blockquote>The wars of the future will be fought in space, by tiny robots.</blockquote>
+            <p>The Cyber Coliseum hosts battles to the death between two JavaScript-programmed robots. The robots can move and shoot projectiles at each other. If a robot absorbs 10 direct hits, the robot is destroyed.</p>
+            <p>Program your robot by declaring a "think" function that accepts two arguments:
+                <ul>
+                    <li>"self" (which represents your robot's internal state)</li>
+                    <li>"environment" (which represents the environment)</li>
+                </ul>
+                The interfaces of these objects are as follows:
+                <ul>
+                    <li>self
+                        <ul>
+                            <li>x: number (immutable)</li>
+                            <li>y: number (immutable)</li>
+                            <li>radius: number (immutable)</li>
+                            <li>moveAngle: number (in radians)</li>
+                            <li>aimAngle: number (in radians)</li>
+                            <li>move: boolean (true if robot should move in the direction of moveAngle</li>
+                            <li>shoot: boolean (true if the robot should fire in the direction of aimAngle</li>
+                        </ul>
+                    </li>
+                    <li>environment
+                        <ul>
+                            <li>bounds
+                                <ul>
+                                    <li>xMin: -10</li>
+                                    <li>xMax: 10</li>
+                                    <li>yMin: -10</li>
+                                    <li>yMax: 10</li>
+                                </ul>
+                            </li>
+                            <li>enemies[] (array, currently always length 1)
+                                <ul>
+                                    <li>x: number</li>
+                                    <li>y: number</li>
+                                    <li>radius: number</li>
+                                </ul>
+                            </li>
+                            <li>enemyProjectiles[] (array)
+                                <ul>
+                                    <li>x: number</li>
+                                    <li>y: number</li>
+                                    <li>angle: number</li>
+                                    <li>speed: number (distance per tick)</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </p>
+        </div>
+
         <div id="inputRoot"></div>
         <div id="outputRoot"></div>
+
         <script src="main.tsx"></script>
     </body>
+
 </html>
