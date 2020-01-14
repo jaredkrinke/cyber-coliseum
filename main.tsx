@@ -151,7 +151,7 @@ namespace Battle {
             super(CollisionClass.solid, x, y, 1, "lightgray", "rgb(128, 128, 128)", 0.2, moveAngle, moveAngle, false);
         }
     
-        protected think?(environment: Environment): void {}
+        protected think(environment: Environment): void {}
     
         public updateWithEnvironment(getEnvironment: () => Environment): Entity[] | null {
             const value = 128 * (this.health / 100);
@@ -224,7 +224,7 @@ namespace Battle {
     }
     
     // Bots
-    type BotThinkHandler = (this: BotState, environment: Environment) => void;
+    type BotThinkHandler = (self: BotState, environment: Environment) => void;
     type BotInitializer = () => BotThinkHandler;
 
     class Bot extends Ship {
@@ -247,7 +247,7 @@ namespace Battle {
                 shoot: this.shoot,
             };
 
-            this.thinkHandler.call(state, environment);
+            this.thinkHandler(state, environment);
 
             this.move = state.move;
             this.shoot = state.shoot;
@@ -257,13 +257,13 @@ namespace Battle {
     }
 
     const BehaviorTurret: BotInitializer = () => {
-        return function (environment: Environment) {
+        return function (self:BotState, environment: Environment) {
             if (environment.enemies.length > 0) {
                 const enemy = environment.enemies[0];
-                this.aimAngle = Math.atan2(enemy.y - this.y, enemy.x - this.x);
-                this.shoot = true;
+                self.aimAngle = Math.atan2(enemy.y - self.y, enemy.x - self.x);
+                self.shoot = true;
             } else {
-                this.shoot = false;
+                self.shoot = false;
             }
         };
     };
@@ -297,15 +297,15 @@ namespace Battle {
     const BehaviorDodger: BotInitializer = () => {
         let angleOffset = Math.PI / 2;
 
-        return function (environment: Environment) {
+        return function (self: BotState, environment: Environment) {
             let closestProjectile: ProjectileState;
             let minimumDistance = 1000;
 
             // Projectiles that will hit us
-            const projectiles = environment.enemyProjectiles.filter((e) => circleIntersectsLine(this, e));
+            const projectiles = environment.enemyProjectiles.filter((e) => circleIntersectsLine(self, e));
 
             for (const p of projectiles) {
-                const distance = getDistance(this, p);
+                const distance = getDistance(self, p);
                 if (distance < minimumDistance) {
                     minimumDistance = distance;
                     closestProjectile = p;
@@ -313,18 +313,18 @@ namespace Battle {
             }
 
             if (closestProjectile) {
-                const angleToProjectile = Math.atan2(closestProjectile.y - this.y, closestProjectile.x - this.x);
-                this.moveAngle = angleToProjectile + angleOffset;
-                const nextX = this.x + Math.cos(this.moveAngle);
-                const nextY = this.y + Math.sin(this.moveAngle);
+                const angleToProjectile = Math.atan2(closestProjectile.y - self.y, closestProjectile.x - self.x);
+                self.moveAngle = angleToProjectile + angleOffset;
+                const nextX = self.x + Math.cos(self.moveAngle);
+                const nextY = self.y + Math.sin(self.moveAngle);
                 if (nextX < environment.bounds.xMin || nextX > environment.bounds.xMax || nextY < environment.bounds.yMin || nextY > environment.bounds.yMax) {
                     angleOffset = -angleOffset;
-                    this.moveAngle = angleToProjectile + angleOffset;
+                    self.moveAngle = angleToProjectile + angleOffset;
                 }
 
-                this.move = true;
+                self.move = true;
             } else {
-                this.move = false;
+                self.move = false;
             }
         };
     };
@@ -530,9 +530,9 @@ namespace Battle {
 
     const templateCode =
 `var da = Math.PI / 100;
-function think(environment) {
-    this.aimAngle += da;
-    this.shoot = true;
+function think(self, environment) {
+    self.aimAngle += da;
+    self.shoot = true;
 }
 `;
 
@@ -540,7 +540,7 @@ function think(environment) {
     const argumentsParsedProperytName = "__COLISEUM_PARSED";
     const callbackWrapperCode =
         `${argumentsParsedProperytName} = JSON.parse(${argumentStringPropertyName});
-        think.call(${argumentsParsedProperytName}.state, ${argumentsParsedProperytName}.environment);
+        think(${argumentsParsedProperytName}.state, ${argumentsParsedProperytName}.environment);
         ${argumentStringPropertyName} = JSON.stringify(${argumentsParsedProperytName});`;
 
     class ColiseumEditor extends React.Component {
@@ -562,10 +562,10 @@ function think(environment) {
                     // TODO: Limit number of steps
                     try {
                         vm.run();
-                        return function (this: BotState, environment: Environment) {
+                        return function (self: BotState, environment: Environment) {
                             try {
                                 vm.setProperty(vm.global, argumentStringPropertyName, JSON.stringify({
-                                    state: this,
+                                    state: self,
                                     environment,
                                 }));
 
@@ -573,10 +573,10 @@ function think(environment) {
                                 vm.run();
                                 const resultState = JSON.parse(vm.getProperty(vm.global, argumentStringPropertyName) as string).state as BotState;
 
-                                this.aimAngle = resultState.aimAngle;
-                                this.moveAngle = resultState.moveAngle;
-                                this.move = resultState.move;
-                                this.shoot = resultState.shoot;
+                                self.aimAngle = resultState.aimAngle;
+                                self.moveAngle = resultState.moveAngle;
+                                self.move = resultState.move;
+                                self.shoot = resultState.shoot;
                             } catch (err) {
                                 console.log(err);
                             }
