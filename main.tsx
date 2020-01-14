@@ -528,9 +528,21 @@ namespace Battle {
     ];
 
     const templateCode =
-`var da = Math.PI / 100;
+`// Delcare any constants or variables here
+var directionDelta = Math.PI / 100;
+
+/**
+ * Using the current state and information about the environment,
+ * "think" determines what the robot should do next (by setting
+ * self.shootDirection, self.shoot, etc.)
+ * 
+ * @param self {RobotState} State of the robot
+ * @param environment {Environment} Information about the environment
+ */
+
 function think(self, environment) {
-    self.shootDirection += da;
+    // This example just spins around shooting constantly
+    self.shootDirection += directionDelta;
     self.shoot = true;
 }
 `;
