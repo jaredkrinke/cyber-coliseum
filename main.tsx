@@ -279,7 +279,6 @@ namespace Battle {
     }
 
     function getDistance(a: Position, b: Position) {
-        // TODO: Should I assume ES6? (Math.hypot)
         return Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
     }
 
@@ -414,8 +413,6 @@ namespace Battle {
                             if (overlapDistance > 0) {
                                 if (b.collisionClass === CollisionClass.solid) {
                                     // Collision with solid; resolve
-                                    // TODO: Consider mass or speed?
-                                    // TODO: Damage?
                                     const angleAToB = Math.atan2(b.y - a.y, b.x - a.x);
                                     const dax = -overlapDistance / 2 * Math.cos(angleAToB) * 1.0001;
                                     const day = -overlapDistance / 2 * Math.sin(angleAToB) * 1.0001;
@@ -543,52 +540,57 @@ function think(self, environment) {
         think(${argumentsParsedProperytName}.state, ${argumentsParsedProperytName}.environment);
         ${argumentStringPropertyName} = JSON.stringify(${argumentsParsedProperytName});`;
 
-    class ColiseumEditor extends React.Component {
+    class ColiseumEditor extends React.Component<{}, {error?: Error}> {
         private inputCode = React.createRef<HTMLTextAreaElement>();
         private inputEnemy = React.createRef<HTMLSelectElement>();
 
         constructor(props) {
             super(props);
+            this.state = {};
+        }
 
-            this.runSimulation.bind(this);
+        private logErrorAndStop(error: Error) {
+            this.setState({ error });
+            ReactDOM.unmountComponentAtNode(document.getElementById("outputRoot"));
         }
 
         private createScriptedBot(): BotInitializer {
-            // TODO: Report errors somehow
+            if (this.state.error) {
+                this.setState({ error: null });
+            }
+
             try {
                 const code = this.inputCode.current.value;
                 const vm = new Interpreter(code);
+                // TODO: Limit number of steps (here and especially below)
+                vm.run();
                 const customInitializer: BotInitializer = () => {
-                    // TODO: Limit number of steps
-                    try {
-                        vm.run();
-                        return function (self: BotState, environment: Environment) {
-                            try {
-                                vm.setProperty(vm.global, argumentStringPropertyName, JSON.stringify({
-                                    state: self,
-                                    environment,
-                                }));
+                    return (self: BotState, environment: Environment) => {
+                        try {
+                            vm.setProperty(vm.global, argumentStringPropertyName, JSON.stringify({
+                                state: self,
+                                environment,
+                            }));
 
-                                vm.appendCode(callbackWrapperCode);
-                                vm.run();
-                                const resultState = JSON.parse(vm.getProperty(vm.global, argumentStringPropertyName) as string).state as BotState;
+                            vm.appendCode(callbackWrapperCode);
+                            vm.run();
+                            const resultState = JSON.parse(vm.getProperty(vm.global, argumentStringPropertyName) as string).state as BotState;
 
-                                self.aimAngle = resultState.aimAngle;
-                                self.moveAngle = resultState.moveAngle;
-                                self.move = resultState.move;
-                                self.shoot = resultState.shoot;
-                            } catch (err) {
-                                console.log(err);
-                            }
-                        };
-                    } catch (err) {
-                        console.log(err);
-                    }
+                            self.aimAngle = resultState.aimAngle;
+                            self.moveAngle = resultState.moveAngle;
+                            self.move = resultState.move;
+                            self.shoot = resultState.shoot;
+                        } catch (error) {
+                            // Error during execution
+                            this.logErrorAndStop(error);
+                        }
+                    };
                 };
 
                 return customInitializer;
-            } catch (err) {
-                console.log(err);
+            } catch (error) {
+                // Error during initialization
+                this.logErrorAndStop(error);
             }
         }
 
@@ -606,6 +608,7 @@ function think(self, environment) {
                 Enemy: <select ref={this.inputEnemy}>{potentialOpponents.map((o, index) => <option value={index.toString()}>{o.name}</option>)}
                 </select><br />
                 <button onClick={this.runSimulation}>Run simulation</button><br />
+                {this.state.error ? <p className="error">{this.state.error.toString()}</p> : null}
             </div>;
         }
     }

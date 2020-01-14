@@ -6,3 +6,8 @@ html, body {
 canvas {
     display: block;
 }
+
+.error {
+    color: red;
+    font-weight: bold;
+}
