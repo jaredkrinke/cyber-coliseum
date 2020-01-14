@@ -1,5 +1,8 @@
 declare const React: typeof import("react");
 declare const ReactDOM: typeof import("react-dom");
+import * as acorn from "./js-interpreter/acorn.js";
+(window as any).acorn = acorn;
+import { Interpreter } from "./js-interpreter/interpreter.js";
 
 namespace Battle {
     // TODO: Update scaling, transformation on window "resize" event
@@ -525,6 +528,21 @@ namespace Battle {
         { name: "Dodger", initializer: BehaviorDodger },
     ];
 
+    const templateCode =
+`var da = Math.PI / 100;
+function think(environment) {
+    this.aimAngle += da;
+    this.shoot = true;
+}
+`;
+
+    const argumentStringPropertyName = "__COLISEUM_STRING";
+    const argumentsParsedProperytName = "__COLISEUM_PARSED";
+    const callbackWrapperCode =
+        `${argumentsParsedProperytName} = JSON.parse(${argumentStringPropertyName});
+        think.call(${argumentsParsedProperytName}.state, ${argumentsParsedProperytName}.environment);
+        ${argumentStringPropertyName} = JSON.stringify(${argumentsParsedProperytName});`;
+
     class ColiseumEditor extends React.Component {
         private inputCode = React.createRef<HTMLTextAreaElement>();
         private inputEnemy = React.createRef<HTMLSelectElement>();
@@ -536,19 +554,50 @@ namespace Battle {
         }
 
         public runSimulation = () => {
-            const code = this.inputCode.current.value;
-            // TODO: This is unsafe! Use JS-Interpreter!
-            const customInitializer = (new Function(code) as BotInitializer);
+            // TODO: Report errors somehow
+            try {
+                const code = this.inputCode.current.value;
+                const vm = new Interpreter(code);
+                const customInitializer: BotInitializer = () => {
+                    // TODO: Limit number of steps
+                    try {
+                        vm.run();
+                        return function (this: BotState, environment: Environment) {
+                            try {
+                                vm.setProperty(vm.global, argumentStringPropertyName, JSON.stringify({
+                                    state: this,
+                                    environment,
+                                }));
 
-            const index = parseInt(this.inputEnemy.current.value);
-            ReactDOM.render(<div></div>, document.getElementById("outputRoot"));
-            ReactDOM.render(<Coliseum width={400} height={400} left={potentialOpponents[index].initializer} right={customInitializer} />, document.getElementById("outputRoot"));
+                                vm.appendCode(callbackWrapperCode);
+                                vm.run();
+                                const resultState = JSON.parse(vm.getProperty(vm.global, argumentStringPropertyName) as string).state as BotState;
+                                console.log(resultState);
+
+                                this.aimAngle = resultState.aimAngle;
+                                this.moveAngle = resultState.moveAngle;
+                                this.move = resultState.move;
+                                this.shoot = resultState.shoot;
+                            } catch (err) {
+                                console.log(err);
+                            }
+                        };
+                    } catch (err) {
+                        console.log(err);
+                    }
+                };
+
+                const index = parseInt(this.inputEnemy.current.value);
+                ReactDOM.render(<Coliseum width={400} height={400} left={potentialOpponents[index].initializer} right={customInitializer} />, document.getElementById("outputRoot"));
+            } catch (err) {
+                console.log(err);
+            }
         };
 
         public render() {
             return <div>
                 Code:<br />
-                <textarea cols={80} rows={25} ref={this.inputCode}></textarea><br />
+                <textarea cols={80} rows={25} ref={this.inputCode}>{templateCode}</textarea><br />
                 Enemy: <select ref={this.inputEnemy}>{potentialOpponents.map((o, index) => <option value={index.toString()}>{o.name}</option>)}
                 </select><br />
                 <button onClick={this.runSimulation}>Run simulation</button><br />
