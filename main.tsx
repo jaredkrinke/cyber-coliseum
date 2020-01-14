@@ -553,7 +553,7 @@ function think(environment) {
             this.runSimulation.bind(this);
         }
 
-        public runSimulation = () => {
+        private createScriptedBot(): BotInitializer {
             // TODO: Report errors somehow
             try {
                 const code = this.inputCode.current.value;
@@ -572,7 +572,6 @@ function think(environment) {
                                 vm.appendCode(callbackWrapperCode);
                                 vm.run();
                                 const resultState = JSON.parse(vm.getProperty(vm.global, argumentStringPropertyName) as string).state as BotState;
-                                console.log(resultState);
 
                                 this.aimAngle = resultState.aimAngle;
                                 this.moveAngle = resultState.moveAngle;
@@ -587,11 +586,17 @@ function think(environment) {
                     }
                 };
 
-                const index = parseInt(this.inputEnemy.current.value);
-                ReactDOM.render(<Coliseum width={400} height={400} left={potentialOpponents[index].initializer} right={customInitializer} />, document.getElementById("outputRoot"));
+                return customInitializer;
             } catch (err) {
                 console.log(err);
             }
+        }
+
+        public runSimulation = () => {
+                const index = parseInt(this.inputEnemy.current.value);
+                const left = potentialOpponents[index].initializer;
+                const right = this.createScriptedBot();
+                ReactDOM.render(<Coliseum width={400} height={400} left={left} right={right} />, document.getElementById("outputRoot"));
         };
 
         public render() {
