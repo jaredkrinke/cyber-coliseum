@@ -61,8 +61,8 @@ namespace Battle {
             protected fillColor: string,
             public speed: number,
             // TODO: Rename all these to moveDirection, shootDirection, etc. (here and in HTML)
-            public moveAngle: number,
-            protected aimAngle: number,
+            public moveDirection: number,
+            protected shootDirection: number,
             public move: boolean) {
         }
     
@@ -78,8 +78,8 @@ namespace Battle {
     
         public update() {
             if (this.move) {
-                this.x += this.speed * Math.cos(this.moveAngle);
-                this.y += this.speed * Math.sin(this.moveAngle);
+                this.x += this.speed * Math.cos(this.moveDirection);
+                this.y += this.speed * Math.sin(this.moveDirection);
             }
         }
 
@@ -90,7 +90,7 @@ namespace Battle {
         public draw(context: CanvasRenderingContext2D) {
             context.save();
             context.translate(this.x, this.y);
-            context.rotate(this.aimAngle);
+            context.rotate(this.shootDirection);
     
             context.beginPath();
             context.arc(0, 0, this.radius, 0, Math.PI * 2, true);
@@ -111,7 +111,7 @@ namespace Battle {
     }
 
     function isMovingEntity(a: object): a is MovingEntity {
-        return "moveAngle" in a;
+        return "moveDirection" in a;
     }
     
     class Projectile extends MovingEntity {
@@ -121,11 +121,11 @@ namespace Battle {
             y: number,
             radius: number,
             color: string,
-            moveAngle: number,
+            moveDirection: number,
             speed: number,
             public damage: number
         ) {
-            super(CollisionClass.massless, x, y, radius, null, color, speed, moveAngle, moveAngle, true);
+            super(CollisionClass.massless, x, y, radius, null, color, speed, moveDirection, moveDirection, true);
         }
     }
     
@@ -136,8 +136,8 @@ namespace Battle {
     class Shot extends Projectile {
         public static readonly shotRadius = 0.15;
 
-        constructor(source: Entity, x: number, y: number, moveAngle: number) {
-            super(source, x, y, Shot.shotRadius, "red", moveAngle, 0.5, 10);
+        constructor(source: Entity, x: number, y: number, moveDirection: number) {
+            super(source, x, y, Shot.shotRadius, "red", moveDirection, 0.5, 10);
         }
     }
     
@@ -148,8 +148,8 @@ namespace Battle {
         protected shoot = false;
         protected shootPeriod = 10;
     
-        constructor(x: number, y: number, moveAngle: number) {
-            super(CollisionClass.solid, x, y, 1, "lightgray", "rgb(128, 128, 128)", 0.2, moveAngle, moveAngle, false);
+        constructor(x: number, y: number, moveDirection: number) {
+            super(CollisionClass.solid, x, y, 1, "lightgray", "rgb(128, 128, 128)", 0.2, moveDirection, moveDirection, false);
         }
     
         protected think(environment: Environment): void {}
@@ -164,10 +164,10 @@ namespace Battle {
             if (this.shoot && this.shootTimer <= 0) {
                 this.shootTimer = this.shootPeriod;
     
-                let x = this.x + (this.radius + Shot.shotRadius) * 1.001 * Math.cos(this.aimAngle);
-                let y = this.y + (this.radius + Shot.shotRadius) * 1.001 * Math.sin(this.aimAngle);
+                let x = this.x + (this.radius + Shot.shotRadius) * 1.001 * Math.cos(this.shootDirection);
+                let y = this.y + (this.radius + Shot.shotRadius) * 1.001 * Math.sin(this.shootDirection);
     
-                result = [new Shot(this, x, y, this.aimAngle)];
+                result = [new Shot(this, x, y, this.shootDirection)];
             } else if (this.shootTimer > 0) {
                 this.shootTimer--;
             }
@@ -192,7 +192,7 @@ namespace Battle {
     }
 
     interface ProjectileState extends Position {
-        angle: number;
+        direction: number;
         speed: number;
     }
 
@@ -211,8 +211,8 @@ namespace Battle {
         radius: number;
 
         // Mutable
-        moveAngle: number;
-        aimAngle: number;
+        moveDirection: number;
+        shootDirection: number;
         move: boolean;
         shoot: boolean;
         // TODO: Charge state? Max speed?
@@ -220,7 +220,7 @@ namespace Battle {
     
     interface Environment {
         bounds: Bounds;
-        enemies: Circle[]; // TODO: Include movement angle and speed
+        enemies: Circle[]; // TODO: Include movement direction and speed
         enemyProjectiles: ProjectileState[];
     }
     
@@ -242,8 +242,8 @@ namespace Battle {
                 x: this.x,
                 y: this.y,
                 radius: this.radius,
-                aimAngle: this.aimAngle,
-                moveAngle: this.moveAngle,
+                shootDirection: this.shootDirection,
+                moveDirection: this.moveDirection,
                 move: this.move,
                 shoot: this.shoot,
             };
@@ -252,8 +252,8 @@ namespace Battle {
 
             this.move = state.move;
             this.shoot = state.shoot;
-            this.aimAngle = state.aimAngle;
-            this.moveAngle = state.moveAngle;
+            this.shootDirection = state.shootDirection;
+            this.moveDirection = state.moveDirection;
         }
     }
 
@@ -261,7 +261,7 @@ namespace Battle {
         return function (self:BotState, environment: Environment) {
             if (environment.enemies.length > 0) {
                 const enemy = environment.enemies[0];
-                self.aimAngle = Math.atan2(enemy.y - self.y, enemy.x - self.x);
+                self.shootDirection = Math.atan2(enemy.y - self.y, enemy.x - self.x);
                 self.shoot = true;
             } else {
                 self.shoot = false;
@@ -272,7 +272,7 @@ namespace Battle {
     interface Line {
         x: number;
         y: number;
-        angle: number;
+        direction: number;
     }
 
     function square(x: number) {
@@ -284,8 +284,8 @@ namespace Battle {
     }
 
     function circleIntersectsLine(circle: Circle, line: Line): boolean {
-        const cosine = Math.cos(line.angle);
-        const sine = Math.sin(line.angle)
+        const cosine = Math.cos(line.direction);
+        const sine = Math.sin(line.direction)
         const x1 = line.x - circle.x;
         const y1 = line.y - circle.y;
         const x2 = x1 + cosine;
@@ -295,7 +295,7 @@ namespace Battle {
     }
 
     const BehaviorDodger: BotInitializer = () => {
-        let angleOffset = Math.PI / 2;
+        let directionOffset = Math.PI / 2;
 
         return function (self: BotState, environment: Environment) {
             let closestProjectile: ProjectileState;
@@ -313,13 +313,13 @@ namespace Battle {
             }
 
             if (closestProjectile) {
-                const angleToProjectile = Math.atan2(closestProjectile.y - self.y, closestProjectile.x - self.x);
-                self.moveAngle = angleToProjectile + angleOffset;
-                const nextX = self.x + Math.cos(self.moveAngle);
-                const nextY = self.y + Math.sin(self.moveAngle);
+                const directionToProjectile = Math.atan2(closestProjectile.y - self.y, closestProjectile.x - self.x);
+                self.moveDirection = directionToProjectile + directionOffset;
+                const nextX = self.x + Math.cos(self.moveDirection);
+                const nextY = self.y + Math.sin(self.moveDirection);
                 if (nextX < environment.bounds.xMin || nextX > environment.bounds.xMax || nextY < environment.bounds.yMin || nextY > environment.bounds.yMax) {
-                    angleOffset = -angleOffset;
-                    self.moveAngle = angleToProjectile + angleOffset;
+                    directionOffset = -directionOffset;
+                    self.moveDirection = directionToProjectile + directionOffset;
                 }
 
                 self.move = true;
@@ -365,12 +365,12 @@ namespace Battle {
         }
 
         private hookUpdate() {
-            this.updateToken = setInterval(this.update, 1000 / Coliseum.fps);
+            this.updateToken = window.setInterval(this.update, 1000 / Coliseum.fps);
         }
 
         private unhookUpdate() {
             if (this.updateToken !== null) {
-                clearInterval(this.updateToken);
+                window.clearInterval(this.updateToken);
                 this.updateToken = null;
             }
         }
@@ -384,7 +384,7 @@ namespace Battle {
                     .map<ProjectileState>(e => ({
                         x: e.x,
                         y: e.y,
-                        angle: e.moveAngle,
+                        direction: e.moveDirection,
                         speed: e.move ? e.speed : 0,
                     })),
             };
@@ -414,9 +414,9 @@ namespace Battle {
                             if (overlapDistance > 0) {
                                 if (b.collisionClass === CollisionClass.solid) {
                                     // Collision with solid; resolve
-                                    const angleAToB = Math.atan2(b.y - a.y, b.x - a.x);
-                                    const dax = -overlapDistance / 2 * Math.cos(angleAToB) * 1.0001;
-                                    const day = -overlapDistance / 2 * Math.sin(angleAToB) * 1.0001;
+                                    const directionAToB = Math.atan2(b.y - a.y, b.x - a.x);
+                                    const dax = -overlapDistance / 2 * Math.cos(directionAToB) * 1.0001;
+                                    const day = -overlapDistance / 2 * Math.sin(directionAToB) * 1.0001;
                                     a.x += dax;
                                     a.y += day;
                                     b.x -= dax;
@@ -530,7 +530,7 @@ namespace Battle {
     const templateCode =
 `var da = Math.PI / 100;
 function think(self, environment) {
-    self.aimAngle += da;
+    self.shootDirection += da;
     self.shoot = true;
 }
 `;
@@ -578,8 +578,8 @@ function think(self, environment) {
                             vm.run();
                             const resultState = JSON.parse(vm.getProperty(vm.global, argumentStringPropertyName) as string).state as BotState;
 
-                            self.aimAngle = resultState.aimAngle;
-                            self.moveAngle = resultState.moveAngle;
+                            self.shootDirection = resultState.shootDirection;
+                            self.moveDirection = resultState.moveDirection;
                             self.move = resultState.move;
                             self.shoot = resultState.shoot;
                         } catch (error) {
