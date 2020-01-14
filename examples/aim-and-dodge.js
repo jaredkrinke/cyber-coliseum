@@ -1,4 +1,4 @@
-var angleOffset = Math.PI / 2;
+var directionOffset = Math.PI / 2;
 
 function square(x) {
     return x * x;
@@ -9,8 +9,8 @@ function getDistance(a, b) {
 }
 
 function circleIntersectsLine(circle, line) {
-    var cosine = Math.cos(line.angle);
-    var sine = Math.sin(line.angle)
+    var cosine = Math.cos(line.direction);
+    var sine = Math.sin(line.direction)
     var x1 = line.x - circle.x;
     var y1 = line.y - circle.y;
     var x2 = x1 + cosine;
@@ -36,13 +36,13 @@ function think(self, environment) {
     }
 
     if (closestProjectile) {
-        var angleToProjectile = Math.atan2(closestProjectile.y - self.y, closestProjectile.x - self.x);
-        self.moveAngle = angleToProjectile + angleOffset;
-        var nextX = self.x + Math.cos(self.moveAngle);
-        var nextY = self.y + Math.sin(self.moveAngle);
+        var directionToProjectile = Math.atan2(closestProjectile.y - self.y, closestProjectile.x - self.x);
+        self.moveDirection = directionToProjectile + directionOffset;
+        var nextX = self.x + Math.cos(self.moveDirection);
+        var nextY = self.y + Math.sin(self.moveDirection);
         if (nextX < environment.bounds.xMin || nextX > environment.bounds.xMax || nextY < environment.bounds.yMin || nextY > environment.bounds.yMax) {
-            angleOffset = -angleOffset;
-            self.moveAngle = angleToProjectile + angleOffset;
+            directionOffset = -directionOffset;
+            self.moveDirection = directionToProjectile + directionOffset;
         }
 
         self.move = true;
@@ -50,9 +50,9 @@ function think(self, environment) {
         self.move = false;
     }
 
-    if (environment.enemies.length > 0) {
-        var enemy = environment.enemies[0];
-        self.aimAngle = Math.atan2(enemy.y - self.y, enemy.x - self.x);
+    if (environment.enemy) {
+        var enemy = environment.enemy;
+        self.shootDirection = Math.atan2(enemy.y - self.y, enemy.x - self.x);
         self.shoot = true;
     } else {
         self.shoot = false;

@@ -3,6 +3,7 @@ declare const ReactDOM: typeof import("react-dom");
 import * as acorn from "./js-interpreter/acorn.js";
 (window as any).acorn = acorn;
 import { Interpreter } from "./js-interpreter/interpreter.js";
+import { Bounds, EnemyState, Environment, ProjectileState, RobotState } from "./coliseum-interface"
 
 namespace Battle {
     // TODO: Update scaling, transformation on window "resize" event
@@ -190,42 +191,9 @@ namespace Battle {
             context.stroke();
         }
     }
-
-    interface ProjectileState extends Position {
-        direction: number;
-        speed: number;
-    }
-
-    interface Bounds {
-        xMin: number;
-        xMax: number;
-        yMin: number;
-        yMax: number;
-    }
-
-    // TODO: Pass constants to initialization function?
-    interface BotState {
-        // "Immutable"
-        x: number;
-        y: number;
-        radius: number;
-
-        // Mutable
-        moveDirection: number;
-        shootDirection: number;
-        move: boolean;
-        shoot: boolean;
-        // TODO: Charge state? Max speed?
-    }
-    
-    interface Environment {
-        bounds: Bounds;
-        enemies: Circle[]; // TODO: Include movement direction and speed
-        enemyProjectiles: ProjectileState[];
-    }
     
     // Bots
-    type BotThinkHandler = (self: BotState, environment: Environment) => void;
+    type BotThinkHandler = (self: RobotState, environment: Environment) => void;
     type BotInitializer = () => BotThinkHandler;
 
     class Bot extends Ship {
@@ -238,7 +206,7 @@ namespace Battle {
         }
 
         protected think(environment: Environment) {
-            const state: BotState = {
+            const state: RobotState = {
                 x: this.x,
                 y: this.y,
                 radius: this.radius,
@@ -258,9 +226,9 @@ namespace Battle {
     }
 
     const BehaviorTurret: BotInitializer = () => {
-        return function (self:BotState, environment: Environment) {
-            if (environment.enemies.length > 0) {
-                const enemy = environment.enemies[0];
+        return function (self:RobotState, environment: Environment) {
+            if (environment.enemy) {
+                const enemy = environment.enemy;
                 self.shootDirection = Math.atan2(enemy.y - self.y, enemy.x - self.x);
                 self.shoot = true;
             } else {
@@ -297,7 +265,7 @@ namespace Battle {
     const BehaviorDodger: BotInitializer = () => {
         let directionOffset = Math.PI / 2;
 
-        return function (self: BotState, environment: Environment) {
+        return function (self: RobotState, environment: Environment) {
             let closestProjectile: ProjectileState;
             let minimumDistance = 1000;
 
@@ -378,14 +346,24 @@ namespace Battle {
         private getEnvironment(self: Entity): Environment {
             return {
                 bounds: Coliseum.environmentBounds,
-                enemies: this.entities.filter(e => e !== self && e.collisionClass === CollisionClass.solid),
+                enemy: this.entities
+                    .filter(e => e !== self && e.collisionClass === CollisionClass.solid)
+                    .map<EnemyState>(e => ({
+                        x: e.x,
+                        y: e.y,
+                        radius: e.radius,
+                        direction: e.move ? e.moveDirection : null,
+                        speed: e.move ? e.speed : 0,
+                    }))
+                    [0] || null,
+
                 enemyProjectiles: this.entities
                     .filter(e => isProjectile(e) && isMovingEntity(e) && e.source !== self)
                     .map<ProjectileState>(e => ({
                         x: e.x,
                         y: e.y,
                         direction: e.moveDirection,
-                        speed: e.move ? e.speed : 0,
+                        speed: e.speed,
                     })),
             };
         }
@@ -528,7 +506,7 @@ namespace Battle {
     ];
 
     const templateCode =
-`// Delcare any constants or variables here
+`// Declare any constants or variables here, if needed
 var directionDelta = Math.PI / 100;
 
 /**
@@ -579,7 +557,7 @@ function think(self, environment) {
                 // TODO: Limit number of steps (here and especially below)
                 vm.run();
                 const customInitializer: BotInitializer = () => {
-                    return (self: BotState, environment: Environment) => {
+                    return (self: RobotState, environment: Environment) => {
                         try {
                             vm.setProperty(vm.global, argumentStringPropertyName, JSON.stringify({
                                 state: self,
@@ -588,7 +566,7 @@ function think(self, environment) {
 
                             vm.appendCode(callbackWrapperCode);
                             vm.run();
-                            const resultState = JSON.parse(vm.getProperty(vm.global, argumentStringPropertyName) as string).state as BotState;
+                            const resultState = JSON.parse(vm.getProperty(vm.global, argumentStringPropertyName) as string).state as RobotState;
 
                             self.shootDirection = resultState.shootDirection;
                             self.moveDirection = resultState.moveDirection;
