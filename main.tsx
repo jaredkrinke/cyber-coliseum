@@ -514,6 +514,8 @@ var directionDelta = Math.PI / 100;
  * "think" determines what the robot should do next (by setting
  * self.shootDirection, self.shoot, etc.)
  * 
+ * (Note: leave these annotations in place to support auto-suggest)
+ * 
  * @param self {RobotState} State of the robot
  * @param environment {Environment} Information about the environment
  */

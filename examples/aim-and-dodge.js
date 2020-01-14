@@ -19,6 +19,14 @@ function circleIntersectsLine(circle, line) {
     return discriminant >= 0;
 }
 
+/**
+ * Using the current state and information about the environment,
+ * "think" determines what the robot should do next (by setting
+ * self.shootDirection, self.shoot, etc.)
+ * 
+ * @param self {RobotState} State of the robot
+ * @param environment {Environment} Information about the environment
+ */
 function think(self, environment) {
     var closestProjectile;
     var minimumDistance = 1000;
