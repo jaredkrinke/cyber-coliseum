@@ -326,7 +326,7 @@ namespace Battle {
         };
     };
 
-    class Coliseum extends React.Component<{width: number, height: number}> {
+    class Coliseum extends React.Component<{width: number, height: number, left: BotInitializer, right: BotInitializer}> {
         private static readonly fps = 30;
         private static readonly maxDistance = 10;
         private static readonly environmentBounds: Bounds = {
@@ -346,11 +346,6 @@ namespace Battle {
     
         constructor(props) {
             super(props);
-
-            this.entities = [
-                new Bot(-10 * Math.random(), 20 * Math.random() - 10, BehaviorTurret),
-                new Bot(10 * Math.random(), 20 * Math.random() - 10, BehaviorDodger),
-            ];
         }
 
         private static getCollisionOverlap(a: Collidable, b: Collidable): number {
@@ -364,6 +359,10 @@ namespace Battle {
 
         private visible(): boolean {
             return !!(this.canvas.current);
+        }
+
+        private hookUpdate() {
+            this.updateToken = setInterval(this.update, 1000 / Coliseum.fps);
         }
 
         private unhookUpdate() {
@@ -458,6 +457,16 @@ namespace Battle {
             }
         }
 
+        private start() {
+            this.entities = [
+                new Bot(-10 * Math.random(), 20 * Math.random() - 10, this.props.left),
+                new Bot(10 * Math.random(), 20 * Math.random() - 10, this.props.right),
+            ];
+
+            this.unhookUpdate();
+            this.hookUpdate();
+        }
+
         public draw = () => {
             this.renderingContext.fillStyle = "gray";
             this.renderingContext.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);    
@@ -477,7 +486,7 @@ namespace Battle {
             }
         }
 
-        public async componentDidMount() {
+        public componentDidMount() {
             if (this.visible()) {
                 this.renderingContext = this.canvas.current.getContext("2d");
 
@@ -497,8 +506,12 @@ namespace Battle {
                 this.renderingContext.scale(scale, -scale);
                 this.renderingContext.translate(this.width / 2, -this.height / 2);
 
-                this.updateToken = setInterval(this.update, 1000 / Coliseum.fps);
+                this.start();
             }
+        }
+
+        public componentDidUpdate() {
+            this.start();
         }
 
         public render() {
@@ -506,5 +519,38 @@ namespace Battle {
         }
     }
 
-    ReactDOM.render(<Coliseum width={window.innerWidth} height={window.innerHeight} />, document.getElementById("root"));
+    const potentialOpponents: { name: string, initializer: BotInitializer}[] = [
+        { name: "Sitting duck", initializer: () => (() => {}) },
+        { name: "Turret", initializer: BehaviorTurret },
+        { name: "Dodger", initializer: BehaviorDodger },
+    ];
+
+    class ColiseumEditor extends React.Component {
+        private inputCode = React.createRef<HTMLTextAreaElement>();
+        private inputEnemy = React.createRef<HTMLSelectElement>();
+
+        constructor(props) {
+            super(props);
+
+            this.runSimulation.bind(this);
+        }
+
+        public runSimulation = () => {
+            const index = parseInt(this.inputEnemy.current.value);
+            ReactDOM.render(<div></div>, document.getElementById("outputRoot"));
+            ReactDOM.render(<Coliseum width={400} height={400} left={potentialOpponents[index].initializer} right={BehaviorTurret} />, document.getElementById("outputRoot"));
+        };
+
+        public render() {
+            return <div>
+                Code:<br />
+                <textarea cols={80} rows={25} ref={this.inputCode}></textarea><br />
+                Enemy: <select ref={this.inputEnemy}>{potentialOpponents.map((o, index) => <option value={index.toString()}>{o.name}</option>)}
+                </select><br />
+                <button onClick={this.runSimulation}>Run simulation</button><br />
+            </div>;
+        }
+    }
+
+    ReactDOM.render(<ColiseumEditor />, document.getElementById("inputRoot"));
 }
