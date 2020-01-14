@@ -536,9 +536,13 @@ namespace Battle {
         }
 
         public runSimulation = () => {
+            const code = this.inputCode.current.value;
+            // TODO: This is unsafe! Use JS-Interpreter!
+            const customInitializer = (new Function(code) as BotInitializer);
+
             const index = parseInt(this.inputEnemy.current.value);
             ReactDOM.render(<div></div>, document.getElementById("outputRoot"));
-            ReactDOM.render(<Coliseum width={400} height={400} left={potentialOpponents[index].initializer} right={BehaviorTurret} />, document.getElementById("outputRoot"));
+            ReactDOM.render(<Coliseum width={400} height={400} left={potentialOpponents[index].initializer} right={customInitializer} />, document.getElementById("outputRoot"));
         };
 
         public render() {
