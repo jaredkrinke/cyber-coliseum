@@ -647,7 +647,7 @@ function think(self, environment) {
     class MessageBox extends React.Component<{title: string, body: React.ReactFragment, closed: () => void}> {
         public render() {
             return <>
-                <div className="dimmer"></div>
+                <div className="dimmer" onClick={this.props.closed}></div>
                 <div className="messageBox">
                     <div className="messageBoxHeader">
                         <button className="messageBoxCloseButton" onClick={this.props.closed}>X</button>
@@ -661,17 +661,22 @@ function think(self, environment) {
         }
     }
 
+    const messageBoxRoot = document.getElementById("messageBoxRoot");
+    function closeMessageBox() {
+        ReactDOM.unmountComponentAtNode(messageBoxRoot);
+    }
+
     function showMessageBox(title: string, body: React.ReactFragment) {
-        const root = document.getElementById("messageBoxRoot");
-        ReactDOM.render(<MessageBox title={title} body={body} closed={() => {ReactDOM.unmountComponentAtNode(root)}}/>, root);
+        ReactDOM.render(<MessageBox title={title} body={body} closed={closeMessageBox}/>, messageBoxRoot);
     }
 
     // TODO: Consider removing intro message
     showMessageBox("Welcome", <>
         <h1>Welcome to the Cyber Coliseum</h1>
         <p>The <strong>Cyber Coliseum</strong> hosts battles to the destruction between two robots that are programmed using JavaScript. The robots can move and shoot projectiles at each other. If a robot absorbs 10 direct hits, the robot is destroyed.</p>
-        <p>More text...</p>
-        <blockquote>"The wars of the future will not be fought on the battlefield or at sea. They will be fought in space, or possibly on top of a very tall mountain. In either case, most of the actual fighting will be done by small robots. And as you go forth today remember always your duty is clear: to build and maintain those robots."</blockquote>
+        <p>After dismissing this introductory message, use the pane on the left to view information and attempt challenges. As you complete challenges, new entries will appear.</p>
+        <button onClick={closeMessageBox}>Continue</button>
+        <blockquote>"The wars of the future will not be fought on the battlefield or at sea. They will be fought in space, or possibly on top of a very tall mountain. In either case, most of the actual fighting will be done by small robots. And as you go forth today, remember always your duty is clear: to build and maintain those robots."<footer>Rommelwood Military School Commandant</footer></blockquote>
     </>);
 
     ReactDOM.render(<ColiseumEditor />, document.getElementById("inputRoot"));
