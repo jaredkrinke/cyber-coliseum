@@ -248,6 +248,8 @@ namespace Battle {
         }
     }
 
+    const BehaviorSittingDuck: BotInitializer = () => (() => {});
+
     const BehaviorTurret: BotInitializer = () => {
         return function (self:RobotState, environment: Environment) {
             if (environment.enemy) {
@@ -522,12 +524,6 @@ namespace Battle {
         }
     }
 
-    const potentialOpponents: { name: string, initializer: BotInitializer}[] = [
-        { name: "Sitting duck", initializer: () => (() => {}) },
-        { name: "Turret", initializer: BehaviorTurret },
-        { name: "Dodger", initializer: BehaviorDodger },
-    ];
-
     const templateCode =
 `// Declare any constants or variables here, if needed
 var directionDelta = Math.PI / 100;
@@ -557,7 +553,7 @@ function think(self, environment) {
         think(${argumentsParsedProperytName}.state, ${argumentsParsedProperytName}.environment);
         ${argumentStringPropertyName} = JSON.stringify(${argumentsParsedProperytName});`;
 
-    class ColiseumEditor extends React.Component<{}, {error?: Error}> {
+    class ColiseumEditor extends React.Component<{opponent: BotInitializer}, {error?: Error}> {
         private inputCodeRoot = React.createRef<HTMLDivElement>();
         private inputEnemy = React.createRef<HTMLSelectElement>();
         private inputCode: monaco.editor.IStandaloneCodeEditor;
@@ -613,8 +609,7 @@ function think(self, environment) {
         }
 
         public runSimulation = () => {
-                const index = parseInt(this.inputEnemy.current.value);
-                const left = potentialOpponents[index].initializer;
+                const left = this.props.opponent;
                 const right = this.createScriptedBot();
                 const width = document.getElementById("outputRoot").clientWidth;
                 ReactDOM.render(<Coliseum width={width} height={400} left={left} right={right} />, document.getElementById("outputRoot"));
@@ -636,8 +631,6 @@ function think(self, environment) {
             return <>
                 Code:
                 <div className="inputCodeRoot" ref={this.inputCodeRoot}></div>
-                Enemy:
-                <select ref={this.inputEnemy}>{potentialOpponents.map((o, index) => <option value={index.toString()}>{o.name}</option>)}</select>
                 <button onClick={this.runSimulation}>Run simulation</button>
                 {this.state.error ? <p className="error">{this.state.error.toString()}</p> : null}
             </>;
@@ -671,6 +664,96 @@ function think(self, environment) {
         }
     }
 
+    class OptionBase {
+        constructor(public title: string) {}
+    }
+
+    class OptionInformation extends OptionBase {
+        constructor(title: string, public content: React.ReactFragment) {
+            super(title);
+        }
+    }
+
+    class OptionChallenge extends OptionBase {
+        constructor (title: string, public opponent: BotInitializer, public blurb: React.ReactFragment) {
+            super(title);
+        }
+    }
+
+    function isOptionInformation(o: OptionBase): o is OptionInformation {
+        return "content" in o;
+    }
+
+    function isOptionChallenge(o: OptionBase): o is OptionChallenge {
+        return "opponent" in o;
+    }
+
+    function toClassName(classes: string[]): string {
+        return classes.join(" ");
+    }
+
+    class ColiseumRoot extends React.Component<{ options: OptionBase[] }, { index: number }> {
+        constructor(props) {
+            super(props);
+            this.state = { index: 0 };
+        }
+
+        public render() {
+            let rightBody: React.ReactFragment = null;
+            const selected = this.props.options[this.state.index];
+            if (isOptionInformation(selected)) {
+                rightBody = selected.content;
+            } else if (isOptionChallenge(selected)) {
+                rightBody = <>
+                    {selected.blurb}
+                    <ColiseumEditor opponent={selected.opponent} />
+                    <div id="outputRoot"></div>
+                </>;
+            }
+
+            return <>
+                <div id="left">
+                    <div className="header">Select</div>
+                    {this.props.options.map((o, i) => {
+                        let classNames = ["option"];
+                        if (i === this.state.index) {
+                            classNames.push("selected");
+                        }
+                        return <button className={toClassName(classNames)} onClick={() => this.setState({ index: i})}>{
+                            isOptionChallenge(o) ? `Challenge: ${o.title}` : o.title
+                        }</button>;
+                    })}
+                </div>
+                <div id="right">
+                    <h1>{selected.title}</h1>
+                    {rightBody}
+                </div>
+            </>;
+        }
+    }
+
+    const options: OptionBase[] = [
+        new OptionInformation("Welcome", <>
+            <p>The <strong>Cyber Coliseum</strong> hosts battles to the destruction between two robots that are programmed using JavaScript. The robots can move and shoot projectiles at each other. If a robot absorbs 10 direct hits, the robot is destroyed.</p>
+            <p>Use the pane on the left to view information and attempt challenges.</p>
+            <p>And remember, it is your patriotic duty to learn to program robots using JavaScript:</p>
+            <blockquote>"The wars of the future will not be fought on the battlefield or at sea. They will be fought in space, or possibly on top of a very tall mountain. In either case, most of the actual fighting will be done by small robots. And as you go forth today, remember always your duty is clear: to build and maintain those robots."<footer>Rommelwood Military School Commandant</footer></blockquote>
+        </>),
+        new OptionInformation("Introduction", <>
+            <p>Program your robot by declaring a "think" function that accepts two arguments (note: the editor provides automatic code suggestions that describe the available properties on these objects):
+                <ul>
+                    <li>"self" (which represents your robot's internal state)</li>
+                    <li>"environment" (which represents the environment, i.e. boundaries and state of the enemy and its projectiles)</li>
+                </ul>
+            </p>
+        </>),
+        new OptionChallenge("Sitting Duck", BehaviorSittingDuck, <>
+            <p>Your first test</p>
+        </>),
+    ];
+
+    ReactDOM.render(<ColiseumRoot options={options} />, document.getElementById("root"));
+
     // TODO: Consider removing intro message
     // TODO: Re-enable
     // MessageBox.show("Welcome", <>
@@ -680,6 +763,4 @@ function think(self, environment) {
     //     <button onClick={MessageBox.hide}>Continue</button>
     //     <blockquote>"The wars of the future will not be fought on the battlefield or at sea. They will be fought in space, or possibly on top of a very tall mountain. In either case, most of the actual fighting will be done by small robots. And as you go forth today, remember always your duty is clear: to build and maintain those robots."<footer>Rommelwood Military School Commandant</footer></blockquote>
     // </>);
-
-    ReactDOM.render(<ColiseumEditor />, document.getElementById("inputRoot"));
 }

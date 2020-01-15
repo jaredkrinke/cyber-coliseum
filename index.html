@@ -7,49 +7,28 @@
         <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/16.11.0/umd/react-dom.production.min.js" integrity="sha256-zuSDvIPhgPCvDFw3HdbA58QUOOGxPbs4llUvBOPxvjY=" crossorigin="anonymous"></script>
     </head>
     <body>
-      <div id="root">
-        <div id="left">
-        </div>
-        <div id="right">
-          <div id="infoRoot"></div>
-          <div id="codeRoot"></div>
-
-          <div id="inputRoot"></div>
-          <div id="outputRoot"></div>
-        </div>
-      </div>
-        <div class="info">
-            <h1>Cyber Coliseum</h1>
-            <p>Program your robot by declaring a "think" function that accepts two arguments (note: the editor provides automatic code suggestions that describe the available properties on these objects):
-                <ul>
-                    <li>"self" (which represents your robot's internal state)</li>
-                    <li>"environment" (which represents the environment, i.e. boundaries and state of the enemy and its projectiles)</li>
-                </ul>
-            </p>
-        </div>
-
-
+        <div id="root"></div>
         <div id="messageBoxRoot"></div>
 
         <script src="main.tsx"></script>
 
         <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.18.1/min/vs/loader.js" integrity="sha256-9PmSVz04j4dZjCddom+Fl6aIATeO6EOBZscDuuG/odA=" crossorigin="anonymous"></script>
         <script>
-          require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.18.1/min/vs' }});
-          window.MonacoEnvironment = {
-            getWorkerUrl: function(workerId, label) {
-              return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
+            require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.18.1/min/vs' } });
+            window.MonacoEnvironment = {
+                getWorkerUrl: function (workerId, label) {
+                    return `data:text/javascript;charset=utf-8,${encodeURIComponent(`
                 self.MonacoEnvironment = {
-                  baseUrl: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.18.1/min/'
+                baseUrl: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.18.1/min/'
                 };
                 importScripts('https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.18.1/min/vs/base/worker/workerMain.js');`
-              )}`;
-            }
-          };
-        
-          require(["vs/editor/editor.main"], function () {
-              window.monacoShim.ready();
-          });
+                    )}`;
+                }
+            };
+
+            require(["vs/editor/editor.main"], function () {
+                window.monacoShim.ready();
+            });
         </script>
     </body>
 </html>
