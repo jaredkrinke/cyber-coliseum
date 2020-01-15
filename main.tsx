@@ -619,6 +619,7 @@ function think(self, environment) {
             monacoShim.then(() => {
                 this.inputCode = monaco.editor.create(this.inputCodeRoot.current, {
                     value: templateCode,
+                    theme: "vs-dark",
                     language: 'javascript'
                 });
 
@@ -746,6 +747,7 @@ function think(self, environment) {
                     <li>"environment" (which represents the environment, i.e. boundaries and state of the enemy and its projectiles)</li>
                 </ul>
             </p>
+            <p>When you're ready, select the first challenge from the list on the left to get started.</p>
         </>),
         new OptionChallenge("Sitting Duck", BehaviorSittingDuck, <>
             <p>Your first test</p>

@@ -46,7 +46,6 @@ button.option {
     margin: 0;
     background-color: #202020;
     color: #c0c0c0;
-    font-size: 100%;
     padding: 0.1em;
     text-align: left;
 }
@@ -130,6 +129,7 @@ button, input {
     border-radius: 0.3em;
     border: 1px solid #808080;
     margin: 2pt;
+    font-size: 100%;
 }
 
 button:hover:enabled, button:focus {
