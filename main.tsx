@@ -713,7 +713,7 @@ function think(self, environment) {
 
             return <>
                 <div id="left">
-                    <div className="header">Select</div>
+                    <div className="header">Navigation</div>
                     {this.props.options.map((o, i) => {
                         let classNames = ["option"];
                         if (i === this.state.index) {
