@@ -1,7 +1,7 @@
 html, body {
     height: 100vh;
     margin: 0;
-    background-color: #202020;
+    background-color: #303030;
     color: #c0c0c0;
     font-family: sans-serif;
 }
@@ -69,8 +69,8 @@ button.option:hover:enabled {
     border: solid 1px #e0e0e0;
 }
 
-canvas {
-    display: block;
+.bordered {
+    border: 1px solid #d0d0d0;
 }
 
 .dimmer {
@@ -95,8 +95,6 @@ canvas {
     transform: translate(-50%, -50%);
 
     z-index: 20;
-    min-width: 30em;
-    max-width: 40em;
 }
 
 .messageBoxHeader {
@@ -119,10 +117,8 @@ canvas {
     border-bottom-right-radius: 0.75em;
     border: 1px solid #d0d0d0;
     padding: 1em;
-    background-color: black;
-    color: #d0d0d0;
-    height: 75vh;
-    overflow: auto;
+    background-color: #808080;
+    color: black;
 }
 
 button, input {

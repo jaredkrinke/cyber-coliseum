@@ -520,7 +520,7 @@ namespace Battle {
         }
 
         public render() {
-            return <canvas ref={this.canvas} width={this.props.width} height={this.props.height} tabIndex={1}></canvas>;
+            return <canvas className="bordered" ref={this.canvas} width={this.props.width} height={this.props.height} tabIndex={1}></canvas>;
         }
     }
 
@@ -611,8 +611,8 @@ function think(self, environment) {
         public runSimulation = () => {
                 const left = this.props.opponent;
                 const right = this.createScriptedBot();
-                const width = document.getElementById("outputRoot").clientWidth;
-                ReactDOM.render(<Coliseum width={width} height={400} left={left} right={right} />, document.getElementById("outputRoot"));
+                const size = Math.min(window.innerWidth, window.innerHeight) * 0.8;
+                MessageBox.show("Simulation", <div id="outputRoot"><Coliseum width={size} height={size} left={left} right={right} /></div>)
         };
 
         public componentDidMount() {
@@ -642,6 +642,7 @@ function think(self, environment) {
         private static readonly messageBoxRoot = document.getElementById("messageBoxRoot");
 
         public static show(title: string, body: React.ReactFragment) {
+            ReactDOM.unmountComponentAtNode(MessageBox.messageBoxRoot);
             ReactDOM.render(<MessageBox title={title} body={body} closed={MessageBox.hide}/>, MessageBox.messageBoxRoot);
         }
 
@@ -708,7 +709,6 @@ function think(self, environment) {
                 rightBody = <>
                     {selected.blurb}
                     <ColiseumEditor opponent={selected.opponent} />
-                    <div id="outputRoot"></div>
                 </>;
             }
 
