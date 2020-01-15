@@ -22,6 +22,11 @@ html, body {
     align-items: stretch;
 }
 
+.inputCodeRoot {
+    height: 600px;
+    border: solid 1px #e0e0e0;
+}
+
 .horizontal {
     display: flex;
     flex-direction: row;

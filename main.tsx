@@ -1,9 +1,32 @@
+/// <reference path="./node_modules/monaco-editor/monaco.d.ts" />
+
 declare const React: typeof import("react");
 declare const ReactDOM: typeof import("react-dom");
 import * as acorn from "./js-interpreter/acorn.js";
 (window as any).acorn = acorn;
 import { Interpreter } from "./js-interpreter/interpreter.js";
+import { coliseumDTS } from "./coliseum-interface-dts";
 import { Bounds, EnemyState, Environment, ProjectileState, RobotState } from "./coliseum-interface"
+
+// Monaco Editor shim
+const monacoShim = {
+    loaded: false,
+    handler: null,
+    then: (f: () => void) => {
+        if (monacoShim.loaded) {
+            f();
+        } else {
+            monacoShim.handler = f;
+        }
+    },
+    ready: () => {
+        monacoShim.loaded = true;
+        if (monacoShim.handler) {
+            monacoShim.handler();
+        }
+    },
+};
+(window as any).monacoShim = monacoShim;
 
 namespace Battle {
     // TODO: Update scaling, transformation on window "resize" event
@@ -535,8 +558,9 @@ function think(self, environment) {
         ${argumentStringPropertyName} = JSON.stringify(${argumentsParsedProperytName});`;
 
     class ColiseumEditor extends React.Component<{}, {error?: Error}> {
-        private inputCode = React.createRef<HTMLTextAreaElement>();
+        private inputCodeRoot = React.createRef<HTMLDivElement>();
         private inputEnemy = React.createRef<HTMLSelectElement>();
+        private inputCode: monaco.editor.IStandaloneCodeEditor;
 
         constructor(props) {
             super(props);
@@ -554,7 +578,7 @@ function think(self, environment) {
             }
 
             try {
-                const code = this.inputCode.current.value;
+                const code = this.inputCode.getValue();
                 const vm = new Interpreter(code);
                 // TODO: Limit number of steps (here and especially below)
                 vm.run();
@@ -596,10 +620,22 @@ function think(self, environment) {
                 ReactDOM.render(<Coliseum width={width} height={400} left={left} right={right} />, document.getElementById("outputRoot"));
         };
 
+        public componentDidMount() {
+            monacoShim.then(() => {
+                this.inputCode = monaco.editor.create(this.inputCodeRoot.current, {
+                    value: templateCode,
+                    language: 'javascript'
+                });
+
+                monaco.languages.typescript.javascriptDefaults
+                    .addExtraLib(coliseumDTS);
+            });
+        }
+
         public render() {
             return <>
                 Code:
-                <textarea cols={80} rows={25} ref={this.inputCode}>{templateCode}</textarea>
+                <div className="inputCodeRoot" ref={this.inputCodeRoot}></div>
                 Enemy:
                 <select ref={this.inputEnemy}>{potentialOpponents.map((o, index) => <option value={index.toString()}>{o.name}</option>)}</select>
                 <button onClick={this.runSimulation}>Run simulation</button>
