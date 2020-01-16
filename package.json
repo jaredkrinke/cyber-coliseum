@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "main": "dist/index.html",
   "scripts": {
-    "build": "parcel build --no-source-maps index.html",
+    "build": "parcel build --no-source-maps --public-url ./ index.html",
     "serve": "parcel serve index.html"
   },
   "devDependencies": {
