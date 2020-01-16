@@ -518,7 +518,6 @@ namespace Battle {
                 this.renderingContext.translate(this.width / 2, -this.height / 2);
 
                 this.start();
-                this.canvas.current.scrollIntoView();
             }
         }
 
