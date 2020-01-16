@@ -269,6 +269,28 @@ namespace Battle {
         };
     };
 
+    const BehaviorMovingTurret: BotInitializer = () => {
+        const period = 60;
+        let timer = period;
+        let direction = Math.PI / 2;
+        return function (self:RobotState, environment: Environment) {
+            if (timer-- <= 0) {
+                timer = period;
+                direction = -direction;
+            }
+            self.moveDirection = direction;
+            self.move = true;
+
+            if (environment.enemy) {
+                const enemy = environment.enemy;
+                self.shootDirection = Math.atan2(enemy.y - self.y, enemy.x - self.x);
+                self.shoot = true;
+            } else {
+                self.shoot = false;
+            }
+        };
+    };
+
     interface Line {
         x: number;
         y: number;
@@ -754,7 +776,6 @@ namespace Battle {
     function createTemplateCode(init: string, body: string) {
         return `// Declare any constants or variables here, if needed
 ${init}
-
 /**
  * Using the current state and information about the environment,
  * "think" determines what the robot should do next (by setting
@@ -766,8 +787,7 @@ ${init}
  * @param environment {Environment} Information about the environment
  */
 
-function think(self, environment) {${body}
-}
+function think(self, environment) {${body}}
 `;        
     }
 
@@ -794,24 +814,48 @@ function think(self, environment) {${body}
             <p>Select the first challenge from the list on the left to get started.</p>
         </>),
         new OptionChallenge("Sitting Duck", BehaviorSittingDuck, <>
-            <p>In this challenge, your opponent is a helpless sitting duck. All you need to do is aim and shoot.</p>
+            <p>In this challenge, your opponent (the left robot) is a helpless sitting duck. All you need to do is program your robot (on the right) to aim and shoot.</p>
             <p>The starter code just spins and shoots constantly (by adding to "self.shootDirection" while "self.shoot" is true). This could be improved by aiming in the direction of "environment.enemy.x" and "environment.enemy.y" (see the following link for information on <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math" target="_blank">JavaScript's built-in math/geometry functions</a>).</p>
         </>, createTemplateCode(
             `var directionDelta = Math.PI / 100`,
 `
     // This example just spins around shooting constantly
     self.shootDirection += directionDelta;
-    self.shoot = true;`)
+    self.shoot = true;
+`)
         ),
         new OptionChallenge("Moving Duck", BehaviorMovingDuck, <>
             <p>This time, your opponent is still helpless, but at least it moves.</p>
+            <p>The sample code has been updated to aim at the enemy using <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/atan2" target="_blank">Math.atan2(y, x)</a>.</p>
         </>, createTemplateCode("",
 `
     // Aim at the enemy using Math.atan2 to compute the correct angle
     if (environment.enemy) {
         self.shootDirection = Math.atan2(environment.enemy.y - self.y, environment.enemy.x - self.x);
         self.shoot = true;
-    }`)
+    }
+`)
+        ),
+        new OptionChallenge("Turret", BehaviorTurret, <>
+            <p>You're in the big leagues now! This enemy fights back.</p>
+            <p>The sample code aims and shoots. It's probably a good idea to add some movement.</p>
+        </>, createTemplateCode("",
+`
+    if (environment.enemy) {
+        self.shootDirection = Math.atan2(environment.enemy.y - self.y, environment.enemy.x - self.x);
+        self.shoot = true;
+    }
+`)
+        ),
+        new OptionChallenge("Mobile Turret", BehaviorMovingTurret, <>
+            <p>This is a real enemy that moves and attacks. Good luck!</p>
+        </>, createTemplateCode("",
+`
+    if (environment.enemy) {
+        self.shootDirection = Math.atan2(environment.enemy.y - self.y, environment.enemy.x - self.x);
+        self.shoot = true;
+    }
+`)
         ),
     ];
 
