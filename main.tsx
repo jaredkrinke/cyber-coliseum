@@ -621,7 +621,6 @@ function think(self, environment) {
 
         public render() {
             return <>
-                Code:
                 <div className="inputCodeRoot" ref={this.inputCodeRoot}></div>
                 <button onClick={this.runSimulation}>Run simulation</button>
                 {this.state.error ? <p className="error">{this.state.error.toString()}</p> : null}
@@ -731,6 +730,8 @@ function think(self, environment) {
                     value: code,
                     theme: "vs-dark",
                     language,
+                    folding: false,
+                    minimap: { enabled: false },
                 });
     
                 monaco.languages.typescript.javascriptDefaults
