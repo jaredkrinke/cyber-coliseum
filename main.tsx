@@ -222,7 +222,7 @@ namespace Battle {
     class Bot extends Ship {
         private thinkHandler: BotThinkHandler;
 
-        constructor (x: number, y: number, initialize: BotInitializer) {
+        constructor (x: number, y: number, public initialize: BotInitializer) {
             super(x, y, 0);
 
             this.thinkHandler = initialize();
@@ -246,6 +246,10 @@ namespace Battle {
             this.shootDirection = state.shootDirection;
             this.moveDirection = state.moveDirection;
         }
+    }
+
+    function isBot(a: MovingEntity): a is Bot {
+        return "initialize" in a;
     }
 
     const BehaviorSittingDuck: BotInitializer = () => (() => {});
@@ -351,17 +355,31 @@ namespace Battle {
         };
     };
 
+    enum SimulationResult {
+        tie,
+        leftWins,
+        rightWins,
+    }
+
     class Coliseum extends React.Component<{width: number, height: number, left: BotInitializer, right: BotInitializer}> {
         private static readonly fps = 30;
         private static readonly maxDistance = 10;
+        private static readonly endTimerPeriod = 2 * Coliseum.fps;
         private static readonly environmentBounds: Bounds = {
             xMin: -Coliseum.maxDistance,
             xMax: Coliseum.maxDistance,
             yMin: -Coliseum.maxDistance,
             yMax: Coliseum.maxDistance,
         };
+        private static readonly resultString = {
+            [SimulationResult.tie]: "Tie",
+            [SimulationResult.leftWins]: "You lose",
+            [SimulationResult.rightWins]: "You win",
+        };
     
         private entities: MovingEntity[];
+        private endTimer: number;
+        private result?: SimulationResult;
 
         private width: number;
         private height: number;
@@ -465,13 +483,17 @@ namespace Battle {
         }
         
         private updateEntities() {
+            // Check to see if both robots are around
+            const bots = this.entities.filter(e => isBot(e)) as Bot[];
+            const inCombat = bots.length > 1;
+
             // Update entities (and add any new ones they create)
             let newEntities = [];
             for (const e of this.entities) {
                 const getEnvironmentForEntity = () => this.getEnvironment(e);
                 e.update();
 
-                if (isScriptable(e)) {
+                if (inCombat && isScriptable(e)) {
                     const result = e.updateWithEnvironment(getEnvironmentForEntity);
                     if (result) {
                         newEntities = newEntities.concat(result);
@@ -484,13 +506,27 @@ namespace Battle {
             this.enforceBounds();
         
             this.entities = this.entities.filter(e => !e.dead);
-        
-            if (this.entities.length <= 1) {
-                this.unhookUpdate();
+
+            // Check for end
+            if (!inCombat) {
+                // Wait bit to declare a victor
+                if (this.endTimer-- <= 0) {
+                    let simulationResult: SimulationResult;
+                    if (bots.length === 1) {
+                        simulationResult = (bots[0].initialize === this.props.left) ? SimulationResult.leftWins : SimulationResult.rightWins;
+                    } else {
+                        simulationResult = SimulationResult.tie;
+                    }
+
+                    this.result = simulationResult;
+                    this.unhookUpdate();
+                }
             }
         }
 
         private start() {
+            this.result = null;
+            this.endTimer = Coliseum.endTimerPeriod;
             this.entities = [
                 new Bot(-10 * Math.random(), 20 * Math.random() - 10, this.props.left),
                 new Bot(10 * Math.random(), 20 * Math.random() - 10, this.props.right),
@@ -508,6 +544,16 @@ namespace Battle {
         
             this.renderingContext.lineWidth = 0.1;
             this.entities.forEach(a => a.draw(this.renderingContext));
+
+            if (this.result !== null) {
+                const str = Coliseum.resultString[this.result];
+                this.renderingContext.font = "2px sans-serif";
+                this.renderingContext.fillStyle = "white";
+                const width = this.renderingContext.measureText(str).width;
+                this.renderingContext.scale(1, -1);
+                this.renderingContext.fillText(str, -width / 2, 0);
+                this.renderingContext.scale(1, -1);
+            }
         }
 
         public update = () => {
