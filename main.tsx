@@ -615,17 +615,8 @@ function think(self, environment) {
                 MessageBox.show("Simulation", <div id="outputRoot"><Coliseum width={size} height={size} left={left} right={right} /></div>)
         };
 
-        public componentDidMount() {
-            monacoShim.then(() => {
-                this.inputCode = monaco.editor.create(this.inputCodeRoot.current, {
-                    value: templateCode,
-                    theme: "vs-dark",
-                    language: 'javascript'
-                });
-
-                monaco.languages.typescript.javascriptDefaults
-                    .addExtraLib(coliseumDTS);
-            });
+        public async componentDidMount() {
+            this.inputCode = await attachCodeEditor(this.inputCodeRoot.current, templateCode);
         }
 
         public render() {
@@ -733,24 +724,65 @@ function think(self, environment) {
         }
     }
 
+    function attachCodeEditor(root: HTMLElement, code: string, language:string = "javascript"): Promise<monaco.editor.IStandaloneCodeEditor> {
+        return new Promise((resolve, reject) => {
+            monacoShim.then(() => {
+                const editor = monaco.editor.create(root, {
+                    value: code,
+                    theme: "vs-dark",
+                    language,
+                });
+    
+                monaco.languages.typescript.javascriptDefaults
+                    .addExtraLib(coliseumDTS, "coliseum.d.ts");
+
+                resolve(editor);
+            });
+        });
+    }
+
+    class TypeDeclarations extends React.Component {
+        private container = React.createRef<HTMLDivElement>();
+
+        constructor(props) {
+            super(props);
+        }
+
+        public async componentDidMount() {
+            attachCodeEditor(this.container.current, coliseumDTS, "typescript");
+        }
+
+        public render() {
+            const size = Math.min(window.innerWidth, window.innerHeight) * 0.8;
+            return <div style={{ width: `${size}px`, height: `${size}px` }} ref={this.container}></div>;
+        }
+    }
+
     const options: OptionBase[] = [
         new OptionInformation("Welcome", <>
             <p>The <strong>Cyber Coliseum</strong> hosts battles to the destruction between two robots that are programmed using JavaScript. The robots can move and shoot projectiles at each other. If a robot absorbs 10 direct hits, the robot is destroyed.</p>
             <p>Use the pane on the left to view information and attempt challenges.</p>
-            <p>And remember, it is your patriotic duty to learn to program robots using JavaScript:</p>
             <blockquote>"The wars of the future will not be fought on the battlefield or at sea. They will be fought in space, or possibly on top of a very tall mountain. In either case, most of the actual fighting will be done by small robots. And as you go forth today, remember always your duty is clear: to build and maintain those robots."<footer>Rommelwood Military School Commandant</footer></blockquote>
         </>),
         new OptionInformation("Introduction", <>
-            <p>Program your robot by declaring a "think" function that accepts two arguments (note: the editor provides automatic code suggestions that describe the available properties on these objects):
+            <p>Robots are programmed by declaring a "think" function that accepts two arguments:
                 <ul>
-                    <li>"self" (which represents your robot's internal state)</li>
-                    <li>"environment" (which represents the environment, i.e. boundaries and state of the enemy and its projectiles)</li>
+                    <li><strong>self</strong> (which represents your robot's internal state)</li>
+                    <li><strong>environment</strong> (which represents the environment, e.g. boundaries and state of the enemy and its projectiles)</li>
                 </ul>
             </p>
-            <p>When you're ready, select the first challenge from the list on the left to get started.</p>
+            <p>Some examples:</p>
+            <ul>
+                <li><strong>"self.shootDirection = Math.PI / 2;"</strong> causes the robot to aim straight up</li>
+                <li><strong>"self.shoot = true;"</strong> causes the robot to try and shoot (in the direction of shootDirection)</li>
+                <li><strong>"environment.enemy.x"</strong> is the enemy robot's position along the horizontal (x) axis</li>
+            </ul>
+            <p>Note: the code editor provides inline code suggestions that describe the available properties on these objects, but by clicking the following link, you can also <a href="#" onClick={(e) => { e.preventDefault(); MessageBox.show("Type declarations", <TypeDeclarations />); }}>view the full type delcarations</a>.</p>
+            <p>Select the first challenge from the list on the left to get started.</p>
         </>),
         new OptionChallenge("Sitting Duck", BehaviorSittingDuck, <>
-            <p>Your first test</p>
+            <p>In this challenge, your opponent is a helpless sitting duck. All you need to do is aim and shoot.</p>
+            <p>The starter code just spins and shoots constantly (by adding to "self.shootDirection" while "self.shoot" is true). This could be improved by aiming in the direction of "environment.enemy.x" and "environment.enemy.y" (see the following link for information on <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math" target="_blank">JavaScript's built-in math/geometry functions</a>).</p>
         </>),
     ];
 

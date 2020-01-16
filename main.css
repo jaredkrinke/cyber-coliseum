@@ -46,7 +46,7 @@ button.option {
     margin: 0;
     background-color: #202020;
     color: #c0c0c0;
-    padding: 0.1em;
+    padding: 0.2em;
     text-align: left;
 }
 
@@ -159,4 +159,8 @@ blockquote footer:before {
 h1 {
     margin-top: 0px;
     text-align: center;
+}
+
+a, a:hover, a:visited, a:active {
+    color: #e0e0e0;
 }
