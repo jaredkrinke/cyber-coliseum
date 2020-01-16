@@ -748,6 +748,13 @@ namespace Battle {
         }
     }
 
+    enum CodeFile {
+        tutorial1,
+        tutorial2,
+        tutorial3,
+        main,
+    }
+
     class OptionBase {
         constructor(public title: string) {}
     }
@@ -759,7 +766,7 @@ namespace Battle {
     }
 
     class OptionChallenge extends OptionBase {
-        constructor (title: string, public opponent: BotInitializer, public blurb: React.ReactFragment, public templateCode: string) {
+        constructor (title: string, public opponent: BotInitializer, public blurb: React.ReactFragment, public codeFile: CodeFile = CodeFile.main) {
             super(title);
         }
     }
@@ -776,6 +783,24 @@ namespace Battle {
         return classes.join(" ");
     }
 
+    function createTemplateCode(init: string, body: string) {
+        return `// Declare any constants or variables here, if needed
+${init}
+/**
+ * Using the current state and information about the environment,
+ * "think" determines what the robot should do next (by setting
+ * self.shootDirection, self.shoot, etc.)
+ * 
+ * (Note: leave these annotations in place to support auto-suggest)
+ * 
+ * @param self {RobotState} State of the robot
+ * @param environment {Environment} Information about the environment
+ */
+
+function think(self, environment) {${body}}
+`;        
+    }
+
     class ColiseumRoot extends React.Component<{ options: OptionBase[] }, { index: number }> {
         constructor(props) {
             super(props);
@@ -788,9 +813,12 @@ namespace Battle {
             if (isOptionInformation(selected)) {
                 rightBody = selected.content;
             } else if (isOptionChallenge(selected)) {
+                // TODO: Get from local storage
+                let templateCode = codeFileToDefaultCode[selected.codeFile];
+
                 rightBody = <>
                     {selected.blurb}
-                    <ColiseumEditor templateCode={selected.templateCode} opponent={selected.opponent} />
+                    <ColiseumEditor templateCode={templateCode} opponent={selected.opponent} />
                 </>;
             }
 
@@ -851,23 +879,33 @@ namespace Battle {
         }
     }
 
-    function createTemplateCode(init: string, body: string) {
-        return `// Declare any constants or variables here, if needed
-${init}
-/**
- * Using the current state and information about the environment,
- * "think" determines what the robot should do next (by setting
- * self.shootDirection, self.shoot, etc.)
- * 
- * (Note: leave these annotations in place to support auto-suggest)
- * 
- * @param self {RobotState} State of the robot
- * @param environment {Environment} Information about the environment
- */
+    const codeFileToDefaultCode = {
+[CodeFile.tutorial1]: createTemplateCode(`var directionDelta = Math.PI / 100`,
+`
+    // This example just spins around shooting constantly
+    self.shootDirection += directionDelta;
+    self.shoot = true;
+`),
 
-function think(self, environment) {${body}}
-`;        
+[CodeFile.tutorial2]: createTemplateCode("",
+`
+    // Aim at the enemy using Math.atan2 to compute the correct angle
+    if (environment.enemy) {
+        self.shootDirection = Math.atan2(environment.enemy.y - self.y, environment.enemy.x - self.x);
+        self.shoot = true;
     }
+`),
+
+[CodeFile.tutorial3]: createTemplateCode("",
+`
+    if (environment.enemy) {
+        self.shootDirection = Math.atan2(environment.enemy.y - self.y, environment.enemy.x - self.x);
+        self.shoot = true;
+    }
+`),
+
+[CodeFile.main]: createTemplateCode("", "\n    // Code goes here\n"),
+    };
 
     const options: OptionBase[] = [
         new OptionInformation("Welcome", <>
@@ -894,47 +932,18 @@ function think(self, environment) {${body}}
         new OptionChallenge("Sitting Duck", BehaviorSittingDuck, <>
             <p>In this challenge, your opponent (the left robot) is a helpless sitting duck. All you need to do is program your robot (on the right) to aim and shoot.</p>
             <p>The starter code just spins and shoots constantly (by adding to "self.shootDirection" while "self.shoot" is true). This could be improved by aiming in the direction of "environment.enemy.x" and "environment.enemy.y" (see the following link for information on <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math" target="_blank">JavaScript's built-in math/geometry functions</a>).</p>
-        </>, createTemplateCode(
-            `var directionDelta = Math.PI / 100`,
-`
-    // This example just spins around shooting constantly
-    self.shootDirection += directionDelta;
-    self.shoot = true;
-`)
-        ),
+        </>, CodeFile.tutorial1),
         new OptionChallenge("Moving Duck", BehaviorMovingDuck, <>
             <p>This time, your opponent is still helpless, but at least it moves.</p>
             <p>The sample code has been updated to aim at the enemy using <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/atan2" target="_blank">Math.atan2(y, x)</a>.</p>
-        </>, createTemplateCode("",
-`
-    // Aim at the enemy using Math.atan2 to compute the correct angle
-    if (environment.enemy) {
-        self.shootDirection = Math.atan2(environment.enemy.y - self.y, environment.enemy.x - self.x);
-        self.shoot = true;
-    }
-`)
-        ),
+        </>, CodeFile.tutorial2),
         new OptionChallenge("Turret", BehaviorTurret, <>
             <p>You're in the big leagues now! This enemy fights back.</p>
             <p>The sample code aims and shoots. It's probably a good idea to add some movement.</p>
-        </>, createTemplateCode("",
-`
-    if (environment.enemy) {
-        self.shootDirection = Math.atan2(environment.enemy.y - self.y, environment.enemy.x - self.x);
-        self.shoot = true;
-    }
-`)
-        ),
+        </>, CodeFile.tutorial3),
         new OptionChallenge("Mobile Turret", BehaviorMovingTurret, <>
             <p>This is a real enemy that moves and attacks. Good luck!</p>
-        </>, createTemplateCode("",
-`
-    if (environment.enemy) {
-        self.shootDirection = Math.atan2(environment.enemy.y - self.y, environment.enemy.x - self.x);
-        self.shoot = true;
-    }
-`)
-        ),
+        </>),
     ];
 
     ReactDOM.render(<ColiseumRoot options={options} />, document.getElementById("root"));
