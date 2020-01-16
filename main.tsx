@@ -361,9 +361,16 @@ namespace Battle {
         rightWins,
     }
 
+    enum TextAlignment {
+        left,
+        center,
+        right,
+    }
+
     class Coliseum extends React.Component<{width: number, height: number, left: BotInitializer, right: BotInitializer}> {
         private static readonly fps = 30;
         private static readonly maxDistance = 10;
+        private static readonly startTimerPeriod = Coliseum.fps;
         private static readonly endTimerPeriod = 2 * Coliseum.fps;
         private static readonly environmentBounds: Bounds = {
             xMin: -Coliseum.maxDistance,
@@ -378,6 +385,7 @@ namespace Battle {
         };
     
         private entities: MovingEntity[];
+        private startTimer: number;
         private endTimer: number;
         private result?: SimulationResult;
 
@@ -483,6 +491,12 @@ namespace Battle {
         }
         
         private updateEntities() {
+            // Check to see if we've started
+            if (this.startTimer > 0) {
+                this.startTimer--;
+                return;
+            }
+
             // Check to see if both robots are around
             const bots = this.entities.filter(e => isBot(e)) as Bot[];
             const inCombat = bots.length > 1;
@@ -526,6 +540,7 @@ namespace Battle {
 
         private start() {
             this.result = null;
+            this.startTimer = Coliseum.startTimerPeriod;
             this.endTimer = Coliseum.endTimerPeriod;
             this.entities = [
                 new Bot(-10 * Math.random(), 20 * Math.random() - 10, this.props.left),
@@ -536,23 +551,40 @@ namespace Battle {
             this.hookUpdate();
         }
 
+        private drawText(text: string, x: number, y: number, alignment: TextAlignment) {
+            this.renderingContext.font = "2px sans-serif";
+            this.renderingContext.fillStyle = "white";
+
+            const width = this.renderingContext.measureText(text).width;
+            let offset: number;
+            switch (alignment) {
+                case TextAlignment.left: offset = 0; break;
+                case TextAlignment.center: offset = -width / 2; break;
+                case TextAlignment.right: offset = -width; break;
+            }
+
+            this.renderingContext.scale(1, -1);
+            this.renderingContext.fillText(text, x + offset, y);
+            this.renderingContext.scale(1, -1);
+        }
+
         public draw = () => {
             this.renderingContext.fillStyle = "gray";
             this.renderingContext.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);    
             this.renderingContext.fillStyle = "black";
             this.renderingContext.fillRect(-Coliseum.maxDistance, -Coliseum.maxDistance, Coliseum.maxDistance * 2, Coliseum.maxDistance * 2);
-        
+
             this.renderingContext.lineWidth = 0.1;
             this.entities.forEach(a => a.draw(this.renderingContext));
+        
+            // TODO: Better names
+            if (this.startTimer > 0) {
+                this.drawText("Enemy", -Coliseum.maxDistance / 2, 0, TextAlignment.center);
+                this.drawText("You", Coliseum.maxDistance / 2, 0, TextAlignment.center);
+            }
 
             if (this.result !== null) {
-                const str = Coliseum.resultString[this.result];
-                this.renderingContext.font = "2px sans-serif";
-                this.renderingContext.fillStyle = "white";
-                const width = this.renderingContext.measureText(str).width;
-                this.renderingContext.scale(1, -1);
-                this.renderingContext.fillText(str, -width / 2, 0);
-                this.renderingContext.scale(1, -1);
+                this.drawText(Coliseum.resultString[this.result], 0, 0, TextAlignment.center);
             }
         }
 
