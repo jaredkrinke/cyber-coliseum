@@ -664,7 +664,7 @@ namespace Battle {
                 const left = this.props.opponent;
                 const right = this.createScriptedBot();
                 const size = Math.min(window.innerWidth, window.innerHeight) * 0.8;
-                MessageBox.show("Simulation", <div id="outputRoot"><Coliseum width={size} height={size} left={left} right={right} /></div>)
+                MessageBox.show("Simulation", <div id="outputRoot"><Coliseum width={size} height={size} left={left} right={right} /></div>, true)
         };
 
         public componentWillUnmount() {
@@ -688,12 +688,12 @@ namespace Battle {
         }
     }
 
-    class MessageBox extends React.Component<{title: string, body: React.ReactFragment, closed: () => void}> {
+    class MessageBox extends React.Component<{title: string, body: React.ReactFragment, closed: () => void, important: boolean}> {
         private static readonly messageBoxRoot = document.getElementById("messageBoxRoot");
 
-        public static show(title: string, body: React.ReactFragment) {
+        public static show(title: string, body: React.ReactFragment, important: boolean = false) {
             ReactDOM.unmountComponentAtNode(MessageBox.messageBoxRoot);
-            ReactDOM.render(<MessageBox title={title} body={body} closed={MessageBox.hide}/>, MessageBox.messageBoxRoot);
+            ReactDOM.render(<MessageBox title={title} body={body} closed={MessageBox.hide} important={important}/>, MessageBox.messageBoxRoot);
         }
 
         public static hide() {
@@ -702,7 +702,7 @@ namespace Battle {
 
         public render() {
             return <>
-                <div className="dimmer" onClick={this.props.closed}></div>
+                <div className="dimmer" onClick={this.props.important ? () => {} : this.props.closed}></div>
                 <div className="messageBox">
                     <div className="messageBoxHeader">
                         <button className="messageBoxCloseButton" onClick={this.props.closed}>X</button>
