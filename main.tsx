@@ -249,6 +249,13 @@ namespace Battle {
     }
 
     const BehaviorSittingDuck: BotInitializer = () => (() => {});
+    const BehaviorMovingDuck: BotInitializer = () => {
+        let moveDirectionDelta = Math.PI / 100;
+        return function (self: RobotState, environment: Environment) {
+            self.moveDirection += moveDirectionDelta;
+            self.move = true;
+        };
+    };
 
     const BehaviorTurret: BotInitializer = () => {
         return function (self:RobotState, environment: Environment) {
@@ -524,28 +531,6 @@ namespace Battle {
         }
     }
 
-    const templateCode =
-`// Declare any constants or variables here, if needed
-var directionDelta = Math.PI / 100;
-
-/**
- * Using the current state and information about the environment,
- * "think" determines what the robot should do next (by setting
- * self.shootDirection, self.shoot, etc.)
- * 
- * (Note: leave these annotations in place to support auto-suggest)
- * 
- * @param self {RobotState} State of the robot
- * @param environment {Environment} Information about the environment
- */
-
-function think(self, environment) {
-    // This example just spins around shooting constantly
-    self.shootDirection += directionDelta;
-    self.shoot = true;
-}
-`;
-
     const argumentStringPropertyName = "__COLISEUM_STRING";
     const argumentsParsedProperytName = "__COLISEUM_PARSED";
     const callbackWrapperCode =
@@ -553,7 +538,7 @@ function think(self, environment) {
         think(${argumentsParsedProperytName}.state, ${argumentsParsedProperytName}.environment);
         ${argumentStringPropertyName} = JSON.stringify(${argumentsParsedProperytName});`;
 
-    class ColiseumEditor extends React.Component<{opponent: BotInitializer}, {error?: Error}> {
+    class ColiseumEditor extends React.Component<{ templateCode: string, opponent: BotInitializer }, {error?: Error}> {
         private inputCodeRoot = React.createRef<HTMLDivElement>();
         private inputEnemy = React.createRef<HTMLSelectElement>();
         private inputCode: monaco.editor.IStandaloneCodeEditor;
@@ -615,11 +600,19 @@ function think(self, environment) {
                 MessageBox.show("Simulation", <div id="outputRoot"><Coliseum width={size} height={size} left={left} right={right} /></div>)
         };
 
+        public componentWillUnmount() {
+            this.inputCode = null;
+        }
+
         public async componentDidMount() {
-            this.inputCode = await attachCodeEditor(this.inputCodeRoot.current, templateCode);
+            this.inputCode = await attachCodeEditor(this.inputCodeRoot.current, this.props.templateCode);
         }
 
         public render() {
+            if (this.inputCode) {
+                this.inputCode.setValue(this.props.templateCode);
+            }
+
             return <>
                 <div className="inputCodeRoot" ref={this.inputCodeRoot}></div>
                 <button onClick={this.runSimulation}>Run simulation</button>
@@ -667,7 +660,7 @@ function think(self, environment) {
     }
 
     class OptionChallenge extends OptionBase {
-        constructor (title: string, public opponent: BotInitializer, public blurb: React.ReactFragment) {
+        constructor (title: string, public opponent: BotInitializer, public blurb: React.ReactFragment, public templateCode: string) {
             super(title);
         }
     }
@@ -698,7 +691,7 @@ function think(self, environment) {
             } else if (isOptionChallenge(selected)) {
                 rightBody = <>
                     {selected.blurb}
-                    <ColiseumEditor opponent={selected.opponent} />
+                    <ColiseumEditor templateCode={selected.templateCode} opponent={selected.opponent} />
                 </>;
             }
 
@@ -759,6 +752,26 @@ function think(self, environment) {
         }
     }
 
+    function createTemplateCode(init: string, body: string) {
+        return `// Declare any constants or variables here, if needed
+${init}
+
+/**
+ * Using the current state and information about the environment,
+ * "think" determines what the robot should do next (by setting
+ * self.shootDirection, self.shoot, etc.)
+ * 
+ * (Note: leave these annotations in place to support auto-suggest)
+ * 
+ * @param self {RobotState} State of the robot
+ * @param environment {Environment} Information about the environment
+ */
+
+function think(self, environment) {${body}
+}
+`;        
+    }
+
     const options: OptionBase[] = [
         new OptionInformation("Welcome", <>
             <p>The <strong>Cyber Coliseum</strong> hosts battles to the destruction between two robots that are programmed using JavaScript. The robots can move and shoot projectiles at each other. If a robot absorbs 10 direct hits, the robot is destroyed.</p>
@@ -784,18 +797,24 @@ function think(self, environment) {
         new OptionChallenge("Sitting Duck", BehaviorSittingDuck, <>
             <p>In this challenge, your opponent is a helpless sitting duck. All you need to do is aim and shoot.</p>
             <p>The starter code just spins and shoots constantly (by adding to "self.shootDirection" while "self.shoot" is true). This could be improved by aiming in the direction of "environment.enemy.x" and "environment.enemy.y" (see the following link for information on <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math" target="_blank">JavaScript's built-in math/geometry functions</a>).</p>
-        </>),
+        </>, createTemplateCode(
+            `var directionDelta = Math.PI / 100`,
+`
+    // This example just spins around shooting constantly
+    self.shootDirection += directionDelta;
+    self.shoot = true;`)
+        ),
+        new OptionChallenge("Moving Duck", BehaviorMovingDuck, <>
+            <p>This time, your opponent is still helpless, but at least it moves.</p>
+        </>, createTemplateCode("",
+`
+    // Aim at the enemy using Math.atan2 to compute the correct angle
+    if (environment.enemy) {
+        self.shootDirection = Math.atan2(environment.enemy.y - self.y, environment.enemy.x - self.x);
+        self.shoot = true;
+    }`)
+        ),
     ];
 
     ReactDOM.render(<ColiseumRoot options={options} />, document.getElementById("root"));
-
-    // TODO: Consider removing intro message
-    // TODO: Re-enable
-    // MessageBox.show("Welcome", <>
-    //     <h1>Welcome to the Cyber Coliseum</h1>
-    //     <p>The <strong>Cyber Coliseum</strong> hosts battles to the destruction between two robots that are programmed using JavaScript. The robots can move and shoot projectiles at each other. If a robot absorbs 10 direct hits, the robot is destroyed.</p>
-    //     <p>After dismissing this introductory message, use the pane on the left to view information and attempt challenges. As you complete challenges, new entries will appear.</p>
-    //     <button onClick={MessageBox.hide}>Continue</button>
-    //     <blockquote>"The wars of the future will not be fought on the battlefield or at sea. They will be fought in space, or possibly on top of a very tall mountain. In either case, most of the actual fighting will be done by small robots. And as you go forth today, remember always your duty is clear: to build and maintain those robots."<footer>Rommelwood Military School Commandant</footer></blockquote>
-    // </>);
 }
