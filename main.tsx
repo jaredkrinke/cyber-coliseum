@@ -630,6 +630,68 @@ namespace Battle {
         }
     }
 
+    enum CodeFile {
+        tutorial1,
+        tutorial2,
+        tutorial3,
+        main,
+    }
+
+    const codeFileToDefaultCode = {
+        [CodeFile.tutorial1]: createTemplateCode(`var directionDelta = Math.PI / 100`,
+`
+    // This example just spins around shooting constantly
+    self.shootDirection += directionDelta;
+    self.shoot = true;
+`),
+        
+        [CodeFile.tutorial2]: createTemplateCode("",
+`
+    // Aim at the enemy using Math.atan2 to compute the correct angle
+    if (environment.enemy) {
+        self.shootDirection = Math.atan2(environment.enemy.y - self.y, environment.enemy.x - self.x);
+        self.shoot = true;
+    }
+`),
+        
+        [CodeFile.tutorial3]: createTemplateCode("",
+`
+    if (environment.enemy) {
+        self.shootDirection = Math.atan2(environment.enemy.y - self.y, environment.enemy.x - self.x);
+        self.shoot = true;
+    }
+`),
+        
+        [CodeFile.main]: createTemplateCode("", "\n    // Code goes here\n"),
+            };
+        
+    class CodeManager {
+        private static codeFileToKey(codeFile: CodeFile): string {
+            return `cc_${CodeFile[codeFile]}`;
+        }
+
+        public static loadCode(codeFile: CodeFile): string {
+            let code: string = null;
+            try {
+                code = localStorage.getItem(CodeManager.codeFileToKey(codeFile));
+            } catch (e) {}
+
+            if (!code) {
+                code = codeFileToDefaultCode[codeFile];
+            }
+
+            return code;
+        }
+
+        public static saveCode(codeFile: CodeFile, code: string): void {
+            try {
+                if (code !== CodeManager.loadCode(codeFile)) {
+                    localStorage.setItem(CodeManager.codeFileToKey(codeFile), code);
+                }
+            } catch (e) {}
+        }
+    }
+
     const argumentStringPropertyName = "__COLISEUM_STRING";
     const argumentsParsedProperytName = "__COLISEUM_PARSED";
     const callbackWrapperCode =
@@ -637,7 +699,7 @@ namespace Battle {
         think(${argumentsParsedProperytName}.state, ${argumentsParsedProperytName}.environment);
         ${argumentStringPropertyName} = JSON.stringify(${argumentsParsedProperytName});`;
 
-    class ColiseumEditor extends React.Component<{ templateCode: string, opponent: BotInitializer }, {error?: Error}> {
+    class ColiseumEditor extends React.Component<{ codeFile: CodeFile, opponent: BotInitializer }, {error?: Error}> {
         private inputCodeRoot = React.createRef<HTMLDivElement>();
         private inputEnemy = React.createRef<HTMLSelectElement>();
         private inputCode: monaco.editor.IStandaloneCodeEditor;
@@ -659,8 +721,13 @@ namespace Battle {
 
             try {
                 const code = this.inputCode.getValue();
-                const vm = new Interpreter(code);
+
+                // Take this opportunity to save
+                CodeManager.saveCode(this.props.codeFile, code);
+
+                // Compile and run
                 // TODO: Limit number of steps (here and especially below)
+                const vm = new Interpreter(code);
                 vm.run();
                 const customInitializer: BotInitializer = () => {
                     return (self: RobotState, environment: Environment) => {
@@ -704,12 +771,12 @@ namespace Battle {
         }
 
         public async componentDidMount() {
-            this.inputCode = await attachCodeEditor(this.inputCodeRoot.current, this.props.templateCode);
+            this.inputCode = await attachCodeEditor(this.inputCodeRoot.current, CodeManager.loadCode(this.props.codeFile));
         }
 
         public render() {
             if (this.inputCode) {
-                this.inputCode.setValue(this.props.templateCode);
+                this.inputCode.setValue(CodeManager.loadCode(this.props.codeFile));
             }
 
             return <>
@@ -746,13 +813,6 @@ namespace Battle {
                 </div>
             </>;
         }
-    }
-
-    enum CodeFile {
-        tutorial1,
-        tutorial2,
-        tutorial3,
-        main,
     }
 
     class OptionBase {
@@ -813,12 +873,9 @@ function think(self, environment) {${body}}
             if (isOptionInformation(selected)) {
                 rightBody = selected.content;
             } else if (isOptionChallenge(selected)) {
-                // TODO: Get from local storage
-                let templateCode = codeFileToDefaultCode[selected.codeFile];
-
                 rightBody = <>
                     {selected.blurb}
-                    <ColiseumEditor templateCode={templateCode} opponent={selected.opponent} />
+                    <ColiseumEditor codeFile={selected.codeFile} opponent={selected.opponent} />
                 </>;
             }
 
@@ -878,34 +935,6 @@ function think(self, environment) {${body}}
             return <div style={{ width: `${size}px`, height: `${size}px` }} ref={this.container}></div>;
         }
     }
-
-    const codeFileToDefaultCode = {
-[CodeFile.tutorial1]: createTemplateCode(`var directionDelta = Math.PI / 100`,
-`
-    // This example just spins around shooting constantly
-    self.shootDirection += directionDelta;
-    self.shoot = true;
-`),
-
-[CodeFile.tutorial2]: createTemplateCode("",
-`
-    // Aim at the enemy using Math.atan2 to compute the correct angle
-    if (environment.enemy) {
-        self.shootDirection = Math.atan2(environment.enemy.y - self.y, environment.enemy.x - self.x);
-        self.shoot = true;
-    }
-`),
-
-[CodeFile.tutorial3]: createTemplateCode("",
-`
-    if (environment.enemy) {
-        self.shootDirection = Math.atan2(environment.enemy.y - self.y, environment.enemy.x - self.x);
-        self.shoot = true;
-    }
-`),
-
-[CodeFile.main]: createTemplateCode("", "\n    // Code goes here\n"),
-    };
 
     const options: OptionBase[] = [
         new OptionInformation("Welcome", <>
