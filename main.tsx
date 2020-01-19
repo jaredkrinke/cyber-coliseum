@@ -709,6 +709,10 @@ namespace Battle {
             this.state = {};
         }
 
+        private logError(error: Error) {
+            this.setState({ error });
+        }
+
         private logErrorAndStop(error: Error) {
             this.setState({ error });
             ReactDOM.unmountComponentAtNode(document.getElementById("outputRoot"));
@@ -755,15 +759,17 @@ namespace Battle {
                 return customInitializer;
             } catch (error) {
                 // Error during initialization
-                this.logErrorAndStop(error);
+                this.logError(error);
             }
         }
 
         public runSimulation = () => {
                 const left = this.props.opponent;
                 const right = this.createScriptedBot();
-                const size = Math.min(window.innerWidth, window.innerHeight) * 0.8;
-                MessageBox.show("Simulation", <div id="outputRoot"><Coliseum width={size} height={size} left={left} right={right} /></div>, true)
+                if (right) {
+                    const size = Math.min(window.innerWidth, window.innerHeight) * 0.8;
+                    MessageBox.show("Simulation", <div id="outputRoot"><Coliseum width={size} height={size} left={left} right={right} /></div>, true)
+                }
         };
 
         public componentWillUnmount() {
@@ -774,11 +780,13 @@ namespace Battle {
             this.inputCode = await attachCodeEditor(this.inputCodeRoot.current, CodeManager.loadCode(this.props.codeFile));
         }
 
-        public render() {
-            if (this.inputCode) {
+        public componentDidUpdate(previousProps) {
+            if (this.inputCode && this.props.codeFile !== previousProps.codeFile) {
                 this.inputCode.setValue(CodeManager.loadCode(this.props.codeFile));
             }
+        }
 
+        public render() {
             return <>
                 <div className="inputCodeRoot" ref={this.inputCodeRoot}></div>
                 <button onClick={this.runSimulation}>Run simulation</button>
