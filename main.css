@@ -12,6 +12,7 @@ html, body {
     display: flex;
     flex-direction: row;
     align-items: stretch;
+    overflow: auto;
     
     height: 100vh;
 
