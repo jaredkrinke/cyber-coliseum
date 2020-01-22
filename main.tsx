@@ -465,6 +465,7 @@ namespace Battle {
                         y: e.y,
                         radius: e.radius,
                         direction: e.move ? e.moveDirection : null,
+                        // TODO: Should account for boundaries! E.g. speed is zero if you CAN'T move
                         speed: e.move ? e.speed : 0,
                     }))
                     [0] || null,
