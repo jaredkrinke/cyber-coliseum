@@ -8,6 +8,9 @@ import { Interpreter } from "./js-interpreter/interpreter.js";
 import { coliseumDTS } from "./coliseum-interface-dts";
 import { Bounds, EnemyState, Environment, ProjectileState, RobotState } from "./coliseum-interface"
 
+const createNewInterpreter = (code: string) => new Interpreter(code);
+type Interpreter = ReturnType<typeof createNewInterpreter>;
+
 // Monaco Editor shim
 const monacoShim = {
     loaded: false,
@@ -84,7 +87,6 @@ namespace Battle {
             protected strokeColor: string | null,
             protected fillColor: string,
             public speed: number,
-            // TODO: Rename all these to moveDirection, shootDirection, etc. (here and in HTML)
             public moveDirection: number,
             protected shootDirection: number,
             public move: boolean) {
@@ -218,6 +220,10 @@ namespace Battle {
     // Bots
     type BotThinkHandler = (self: RobotState, environment: Environment) => void;
     type BotInitializer = () => BotThinkHandler;
+
+    function isBotInitializer(a: BotInitializer | CodeFile): a is BotInitializer {
+        return typeof(a) === "function";
+    }
 
     class Bot extends Ship {
         private thinkHandler: BotThinkHandler;
@@ -367,7 +373,20 @@ namespace Battle {
         right,
     }
 
-    class Coliseum extends React.Component<{width: number, height: number, left: BotInitializer, right: BotInitializer}> {
+    enum Scenario {
+        youVersusEnemy,
+        leftVersusRight,
+    }
+
+    interface ColiseumProperties {
+        width: number;
+        height: number;
+        left: BotInitializer;
+        right: BotInitializer;
+        scenario: Scenario;
+    }
+
+    class Coliseum extends React.Component<ColiseumProperties> {
         private static readonly fps = 30;
         private static readonly maxDistance = 10;
         private static readonly startTimerPeriod = Coliseum.fps;
@@ -378,10 +397,23 @@ namespace Battle {
             yMin: -Coliseum.maxDistance,
             yMax: Coliseum.maxDistance,
         };
+        
         private static readonly resultString = {
-            [SimulationResult.tie]: "Tie",
-            [SimulationResult.leftWins]: "You lose",
-            [SimulationResult.rightWins]: "You win",
+            [Scenario.youVersusEnemy]: {
+                [SimulationResult.tie]: "Tie",
+                [SimulationResult.leftWins]: "You lose",
+                [SimulationResult.rightWins]: "You win",
+            },
+            [Scenario.leftVersusRight]: {
+                [SimulationResult.tie]: "Tie",
+                [SimulationResult.leftWins]: "Left wins",
+                [SimulationResult.rightWins]: "Right wins",
+            },
+        };
+
+        private static readonly robotLabels = {
+            [Scenario.youVersusEnemy]: ["Enemy", "You"],
+            [Scenario.leftVersusRight]: ["Left", "Right"],
         };
     
         private entities: MovingEntity[];
@@ -577,14 +609,13 @@ namespace Battle {
             this.renderingContext.lineWidth = 0.1;
             this.entities.forEach(a => a.draw(this.renderingContext));
         
-            // TODO: Better names
             if (this.startTimer > 0) {
-                this.drawText("Enemy", -Coliseum.maxDistance / 2, 0, TextAlignment.center);
-                this.drawText("You", Coliseum.maxDistance / 2, 0, TextAlignment.center);
+                this.drawText(Coliseum.robotLabels[this.props.scenario][0], -Coliseum.maxDistance / 2, 0, TextAlignment.center);
+                this.drawText(Coliseum.robotLabels[this.props.scenario][1], Coliseum.maxDistance / 2, 0, TextAlignment.center);
             }
 
             if (this.result !== null) {
-                this.drawText(Coliseum.resultString[this.result], 0, 0, TextAlignment.center);
+                this.drawText(Coliseum.resultString[this.props.scenario][this.result], 0, 0, TextAlignment.center);
             }
         }
 
@@ -635,6 +666,8 @@ namespace Battle {
         tutorial2,
         tutorial3,
         main,
+        left,
+        right,
     }
 
     const codeFileToDefaultCode = {
@@ -663,6 +696,8 @@ namespace Battle {
 `),
         
         [CodeFile.main]: createTemplateCode("", "\n    // Code goes here\n"),
+        [CodeFile.left]: createTemplateCode("", "\n    // Code goes here\n"),
+        [CodeFile.right]: createTemplateCode("", "\n    // Code goes here\n"),
             };
         
     class CodeManager {
@@ -692,16 +727,8 @@ namespace Battle {
         }
     }
 
-    const argumentStringPropertyName = "__COLISEUM_STRING";
-    const argumentsParsedProperytName = "__COLISEUM_PARSED";
-    const callbackWrapperCode =
-        `${argumentsParsedProperytName} = JSON.parse(${argumentStringPropertyName});
-        think(${argumentsParsedProperytName}.state, ${argumentsParsedProperytName}.environment);
-        ${argumentStringPropertyName} = JSON.stringify(${argumentsParsedProperytName});`;
-
-    class ColiseumEditor extends React.Component<{ codeFile: CodeFile, opponent: BotInitializer }, {error?: Error}> {
+    class CodeEditor extends React.Component<{ codeFile: CodeFile }, { error?: string }> {
         private inputCodeRoot = React.createRef<HTMLDivElement>();
-        private inputEnemy = React.createRef<HTMLSelectElement>();
         private inputCode: monaco.editor.IStandaloneCodeEditor;
 
         constructor(props) {
@@ -709,20 +736,13 @@ namespace Battle {
             this.state = {};
         }
 
-        private logError(error: Error) {
-            this.setState({ error });
-        }
-
-        private logErrorAndStop(error: Error) {
-            this.setState({ error });
-            ReactDOM.unmountComponentAtNode(document.getElementById("outputRoot"));
-        }
-
-        private createScriptedBot(): BotInitializer {
-            if (this.state.error) {
-                this.setState({ error: null });
+        public getCode(): string {
+            if (this.inputCode) {
+                return this.inputCode.getValue();
             }
+        }
 
+        public runCode(): Interpreter {
             try {
                 const code = this.inputCode.getValue();
 
@@ -730,47 +750,15 @@ namespace Battle {
                 CodeManager.saveCode(this.props.codeFile, code);
 
                 // Compile and run
-                // TODO: Limit number of steps (here and especially below)
+                // TODO: Limit number of steps (here and on each step)
                 const vm = new Interpreter(code);
                 vm.run();
-                const customInitializer: BotInitializer = () => {
-                    return (self: RobotState, environment: Environment) => {
-                        try {
-                            vm.setProperty(vm.global, argumentStringPropertyName, JSON.stringify({
-                                state: self,
-                                environment,
-                            }));
-
-                            vm.appendCode(callbackWrapperCode);
-                            vm.run();
-                            const resultState = JSON.parse(vm.getProperty(vm.global, argumentStringPropertyName) as string).state as RobotState;
-
-                            self.shootDirection = resultState.shootDirection;
-                            self.moveDirection = resultState.moveDirection;
-                            self.move = resultState.move;
-                            self.shoot = resultState.shoot;
-                        } catch (error) {
-                            // Error during execution
-                            this.logErrorAndStop(error);
-                        }
-                    };
-                };
-
-                return customInitializer;
+                return vm;
             } catch (error) {
                 // Error during initialization
-                this.logError(error);
+                this.setState({ error });
             }
         }
-
-        public runSimulation = () => {
-                const left = this.props.opponent;
-                const right = this.createScriptedBot();
-                if (right) {
-                    const size = Math.min(window.innerWidth, window.innerHeight) * 0.8;
-                    MessageBox.show("Simulation", <div id="outputRoot"><Coliseum width={size} height={size} left={left} right={right} /></div>, true)
-                }
-        };
 
         public componentWillUnmount() {
             this.inputCode = null;
@@ -789,6 +777,99 @@ namespace Battle {
         public render() {
             return <>
                 <div className="inputCodeRoot" ref={this.inputCodeRoot}></div>
+                {this.state.error ? <p className="error">{this.state.error.toString()}</p> : null}
+                </>;
+        }
+    }
+
+    const argumentStringPropertyName = "__COLISEUM_STRING";
+    const argumentsParsedProperytName = "__COLISEUM_PARSED";
+    const callbackWrapperCode =
+        `${argumentsParsedProperytName} = JSON.parse(${argumentStringPropertyName});
+        think(${argumentsParsedProperytName}.state, ${argumentsParsedProperytName}.environment);
+        ${argumentStringPropertyName} = JSON.stringify(${argumentsParsedProperytName});`;
+
+    class ColiseumEditor extends React.Component<{ codeFile: CodeFile, opponent: BotInitializer | CodeFile }, {error?: Error}> {
+        private codeEditorLeft = React.createRef<CodeEditor>();
+        private codeEditorRight = React.createRef<CodeEditor>();
+        private inputEnemy = React.createRef<HTMLSelectElement>();
+
+        constructor(props) {
+            super(props);
+            this.state = {};
+        }
+
+        private logError(error: Error) {
+            this.setState({ error });
+        }
+
+        private logErrorAndStop(error: Error) {
+            this.setState({ error });
+            ReactDOM.unmountComponentAtNode(document.getElementById("outputRoot"));
+        }
+
+        private createScriptedBot(editor: CodeEditor): BotInitializer {
+            if (this.state.error) {
+                this.setState({ error: null });
+            }
+
+            try {
+                // Compile and run
+                // TODO: Limit number of steps (here and especially below)
+                const vm = editor.runCode();
+                if (vm) {
+                    const customInitializer: BotInitializer = () => {
+                        return (self: RobotState, environment: Environment) => {
+                            try {
+                                vm.setProperty(vm.global, argumentStringPropertyName, JSON.stringify({
+                                    state: self,
+                                    environment,
+                                }));
+    
+                                vm.appendCode(callbackWrapperCode);
+                                vm.run();
+                                const resultState = JSON.parse(vm.getProperty(vm.global, argumentStringPropertyName) as string).state as RobotState;
+    
+                                self.shootDirection = resultState.shootDirection;
+                                self.moveDirection = resultState.moveDirection;
+                                self.move = resultState.move;
+                                self.shoot = resultState.shoot;
+                            } catch (error) {
+                                // Error during execution
+                                this.logErrorAndStop(error);
+                            }
+                        };
+                    };
+    
+                    return customInitializer;
+                }
+            } catch (error) {
+                // Error during initialization
+                this.logError(error);
+            }
+        }
+
+        public runSimulation = () => {
+                const left = isBotInitializer(this.props.opponent) ? this.props.opponent : this.createScriptedBot(this.codeEditorLeft.current);
+                const right = this.createScriptedBot(this.codeEditorRight.current);
+                if (right) {
+                    const size = Math.min(window.innerWidth, window.innerHeight) * 0.8;
+                    MessageBox.show("Simulation", <div id="outputRoot"><Coliseum width={size} height={size} left={left} right={right} scenario={isBotInitializer(this.props.opponent) ? Scenario.youVersusEnemy : Scenario.leftVersusRight} /></div>, true)
+                }
+        };
+
+        public render() {
+            return <>
+                {
+                    isBotInitializer(this.props.opponent)
+                    ? null
+                    : <>
+                        <p>Code for left robot:</p>
+                        <CodeEditor ref={this.codeEditorLeft} codeFile={this.props.opponent} />
+                        <p>Code for right robot:</p>
+                    </>
+                }
+                <CodeEditor ref={this.codeEditorRight} codeFile={this.props.codeFile} />
                 <button onClick={this.runSimulation}>Run simulation</button>
                 {this.state.error ? <p className="error">{this.state.error.toString()}</p> : null}
             </>;
@@ -839,12 +920,22 @@ namespace Battle {
         }
     }
 
+    class OptionArena extends OptionBase {
+        constructor () {
+            super("Arena");
+        }
+    }
+
     function isOptionInformation(o: OptionBase): o is OptionInformation {
         return "content" in o;
     }
 
     function isOptionChallenge(o: OptionBase): o is OptionChallenge {
         return "opponent" in o;
+    }
+
+    function isOptionArena(o: OptionBase): o is OptionArena {
+        return o.title === "Arena";
     }
 
     function toClassName(classes: string[]): string {
@@ -884,6 +975,11 @@ function think(self, environment) {${body}}
                 rightBody = <>
                     {selected.blurb}
                     <ColiseumEditor codeFile={selected.codeFile} opponent={selected.opponent} />
+                </>;
+            } else if (isOptionArena(selected)) {
+                rightBody = <>
+                    <p>In The Arena, you can paste in code for both robots, to test your creations against each other or against code posted online by other players.</p>
+                    <ColiseumEditor codeFile={CodeFile.right} opponent={CodeFile.left} />
                 </>;
             }
 
@@ -981,6 +1077,7 @@ function think(self, environment) {${body}}
         new OptionChallenge("Mobile Turret", BehaviorMovingTurret, <>
             <p>This is a real enemy that moves and attacks. Good luck!</p>
         </>),
+        new OptionArena(),
     ];
 
     ReactDOM.render(<ColiseumRoot options={options} />, document.getElementById("root"));
