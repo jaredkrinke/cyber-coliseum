@@ -1,6 +1,6 @@
 {
   "name": "battlejs",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "main": "dist/index.html",
   "scripts": {
     "build": "parcel build --no-source-maps --public-url ./ index.html",
