@@ -33,37 +33,37 @@ const monacoShim = {
 
 namespace Battle {
     // TODO: Update scaling, transformation on window "resize" event
-    
+
     // Logic
     // TODO: Could be inferred from "collided" handler
     enum CollisionClass {
         solid,      // Collides with solids (moving them apart), and also with massless
         massless,   // Collides with solids, but doesn't move anything
     }
-    
+
     interface Position {
         x: number;
         y: number;
     }
-    
+
     interface Circle extends Position {
         radius: number;
     }
-    
+
     interface Collidable extends Circle {
         collisionClass: CollisionClass;
-    
+
         /** Called on collisionClass.solid when colliding with collisionClass.massless */
         collided(other: Collidable): void;
     }
-    
+
     interface Entity extends Collidable {
         dead: boolean;
-    
+
         update(): void;
         draw(context: CanvasRenderingContext2D): void;
     }
-    
+
     function isEntity(a: object): a is Entity {
         return "dead" in a;
     }
@@ -75,10 +75,10 @@ namespace Battle {
     function isScriptable(a: object): a is Scriptable {
         return "updateWithEnvironment" in a;
     }
-    
+
     class MovingEntity implements Entity, Scriptable {
         public dead = false;
-    
+
         constructor(
             public collisionClass: CollisionClass,
             public x: number,
@@ -91,17 +91,17 @@ namespace Battle {
             protected shootDirection: number,
             public move: boolean) {
         }
-    
+
         protected collidedInternal(other: Collidable) {}
         protected drawInternal(context: CanvasRenderingContext2D) { }
-    
+
         public collided(other: Collidable) {
             if (isEntity(other)) {
                 other.dead = true;
                 this.collidedInternal(other);
             }
         }
-    
+
         public update() {
             if (this.move) {
                 this.x += this.speed * Math.cos(this.moveDirection);
@@ -112,12 +112,12 @@ namespace Battle {
         public updateWithEnvironment(getEnvironment: () => Environment) {
             return null;
         }
-    
+
         public draw(context: CanvasRenderingContext2D) {
             context.save();
             context.translate(this.x, this.y);
             context.rotate(this.shootDirection);
-    
+
             context.beginPath();
             context.arc(0, 0, this.radius, 0, Math.PI * 2, true);
             context.closePath();
@@ -129,9 +129,9 @@ namespace Battle {
                 context.strokeStyle = this.strokeColor;
                 context.stroke();
             }
-    
+
             this.drawInternal(context);
-            
+
             context.restore();
         }
     }
@@ -139,7 +139,7 @@ namespace Battle {
     function isMovingEntity(a: object): a is MovingEntity {
         return "moveDirection" in a;
     }
-    
+
     class Projectile extends MovingEntity {
         constructor(
             public source: Entity,
@@ -154,11 +154,11 @@ namespace Battle {
             super(CollisionClass.massless, x, y, radius, null, color, speed, moveDirection, moveDirection, true);
         }
     }
-    
+
     function isProjectile(a: object): a is Projectile {
         return "damage" in a;
     }
-    
+
     class Shot extends Projectile {
         public static readonly shotRadius = 0.15;
 
@@ -166,40 +166,40 @@ namespace Battle {
             super(source, x, y, Shot.shotRadius, "red", moveDirection, 0.5, 10);
         }
     }
-    
+
     class Ship extends MovingEntity {
         private shootTimer = 0;
         private health = 100;
-    
+
         protected shoot = false;
         protected shootPeriod = 10;
-    
+
         constructor(x: number, y: number, moveDirection: number) {
             super(CollisionClass.solid, x, y, 1, "lightgray", "rgb(128, 128, 128)", 0.2, moveDirection, moveDirection, false);
         }
-    
+
         protected think(environment: Environment): void {}
-    
+
         public updateWithEnvironment(getEnvironment: () => Environment): Entity[] | null {
             const value = 128 * (this.health / 100);
             this.fillColor = `rgb(${value}, ${value}, ${value})`;
 
             this.think(getEnvironment());
-    
+
             let result = null;
             if (this.shoot && this.shootTimer <= 0) {
                 this.shootTimer = this.shootPeriod;
-    
+
                 let x = this.x + (this.radius + Shot.shotRadius) * 1.001 * Math.cos(this.shootDirection);
                 let y = this.y + (this.radius + Shot.shotRadius) * 1.001 * Math.sin(this.shootDirection);
-    
+
                 result = [new Shot(this, x, y, this.shootDirection)];
             } else if (this.shootTimer > 0) {
                 this.shootTimer--;
             }
             return result;
         }
-    
+
         protected collidedInternal(other: Collidable) {
             if (isProjectile(other)) {
                 this.health -= other.damage;
@@ -207,7 +207,7 @@ namespace Battle {
                 // TODO: Explosion?
             }
         }
-    
+
         protected drawInternal(context: CanvasRenderingContext2D) {
             context.strokeStyle = "white";
             context.beginPath();
@@ -216,7 +216,7 @@ namespace Battle {
             context.stroke();
         }
     }
-    
+
     // Bots
     type BotThinkHandler = (self: RobotState, environment: Environment) => void;
     type BotInitializer = () => BotThinkHandler;
@@ -326,14 +326,22 @@ namespace Battle {
         return discriminant >= 0;
     }
 
-    const BehaviorDodger: BotInitializer = () => {
+    const BehaviorBoss: BotInitializer = () => {
         let directionOffset = Math.PI / 2;
 
         return function (self: RobotState, environment: Environment) {
+            // Leading shots
+            const enemy = environment.enemy;
+            var d = getDistance(enemy, self);
+            var x = enemy.x + d / 0.5 * enemy.speed * Math.cos(enemy.direction);
+            var y = enemy.y + d / 0.5 * enemy.speed * Math.sin(enemy.direction);
+            self.shootDirection = Math.atan2(y - self.y, x - self.x);
+            self.shoot = true;
+
+            // Dodging
             let closestProjectile: ProjectileState;
             let minimumDistance = 1000;
 
-            // Projectiles that will hit us
             const projectiles = environment.enemyProjectiles.filter((e) => circleIntersectsLine(self, e));
 
             for (const p of projectiles) {
@@ -397,7 +405,7 @@ namespace Battle {
             yMin: -Coliseum.maxDistance,
             yMax: Coliseum.maxDistance,
         };
-        
+
         private static readonly resultString = {
             [Scenario.youVersusEnemy]: {
                 [SimulationResult.tie]: "Tie",
@@ -415,7 +423,7 @@ namespace Battle {
             [Scenario.youVersusEnemy]: ["Enemy", "You"],
             [Scenario.leftVersusRight]: ["Left", "Right"],
         };
-    
+
         private entities: MovingEntity[];
         private startTimer: number;
         private endTimer: number;
@@ -426,7 +434,7 @@ namespace Battle {
         private canvas: React.RefObject<HTMLCanvasElement> = React.createRef<HTMLCanvasElement>();
         private renderingContext?: CanvasRenderingContext2D = null;
         private updateToken?: number = null;
-    
+
         constructor(props) {
             super(props);
         }
@@ -455,19 +463,34 @@ namespace Battle {
             }
         }
 
+        private enforceBoundsOnCoordinate(x: number): number {
+            return Math.max(-Coliseum.maxDistance, Math.min(Coliseum.maxDistance, x));
+        }
+
         private getEnvironment(self: Entity): Environment {
             return {
                 bounds: Coliseum.environmentBounds,
                 enemy: this.entities
                     .filter(e => e !== self && e.collisionClass === CollisionClass.solid)
-                    .map<EnemyState>(e => ({
-                        x: e.x,
-                        y: e.y,
-                        radius: e.radius,
-                        direction: e.move ? e.moveDirection : null,
-                        // TODO: Should account for boundaries! E.g. speed is zero if you CAN'T move
-                        speed: e.move ? e.speed : 0,
-                    }))
+                    .map<EnemyState>(e => {
+                        let direction: number = null;
+                        let speed = 0;
+
+                        if (e.move) {
+                            let nextX = this.enforceBoundsOnCoordinate(e.x + e.speed * Math.cos(e.moveDirection));
+                            let nextY = this.enforceBoundsOnCoordinate(e.y + e.speed * Math.sin(e.moveDirection));
+                            direction = Math.atan2(nextY - e.y, nextX - e.x);
+                            speed = getDistance({ x: nextX, y: nextY }, e);
+                        }
+
+                        return {
+                            x: e.x,
+                            y: e.y,
+                            radius: e.radius,
+                            direction,
+                            speed,
+                        };
+                    })
                     [0] || null,
 
                 enemyProjectiles: this.entities
@@ -488,12 +511,12 @@ namespace Battle {
                         e.dead = true;
                     }
                 } else {
-                    e.x = Math.max(-Coliseum.maxDistance, Math.min(Coliseum.maxDistance, e.x));
-                    e.y = Math.max(-Coliseum.maxDistance, Math.min(Coliseum.maxDistance, e.y));
+                    e.x = this.enforceBoundsOnCoordinate(e.x);
+                    e.y = this.enforceBoundsOnCoordinate(e.y);
                 }
             }
         }
-    
+
         private findAndResolveCollisions() {
             // Loop through solids first
             for (const a of this.entities) {
@@ -522,7 +545,7 @@ namespace Battle {
                 }
             }
         }
-        
+
         private updateEntities() {
             // Check to see if we've started
             if (this.startTimer > 0) {
@@ -548,10 +571,10 @@ namespace Battle {
                 }
             }
             this.entities = this.entities.concat(newEntities);
-        
+
             this.findAndResolveCollisions();
             this.enforceBounds();
-        
+
             this.entities = this.entities.filter(e => !e.dead);
 
             // Check for end
@@ -603,13 +626,13 @@ namespace Battle {
 
         public draw = () => {
             this.renderingContext.fillStyle = "gray";
-            this.renderingContext.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);    
+            this.renderingContext.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
             this.renderingContext.fillStyle = "black";
             this.renderingContext.fillRect(-Coliseum.maxDistance, -Coliseum.maxDistance, Coliseum.maxDistance * 2, Coliseum.maxDistance * 2);
 
             this.renderingContext.lineWidth = 0.1;
             this.entities.forEach(a => a.draw(this.renderingContext));
-        
+
             if (this.startTimer > 0) {
                 this.drawText(Coliseum.robotLabels[this.props.scenario][0], -Coliseum.maxDistance / 2, 0, TextAlignment.center);
                 this.drawText(Coliseum.robotLabels[this.props.scenario][1], Coliseum.maxDistance / 2, 0, TextAlignment.center);
@@ -645,7 +668,7 @@ namespace Battle {
                     this.height = (2 * Coliseum.maxDistance);
                     this.width = canvas.width / scale;
                 }
-                
+
                 this.renderingContext.scale(scale, -scale);
                 this.renderingContext.translate(this.width / 2, -this.height / 2);
 
@@ -678,7 +701,7 @@ namespace Battle {
     self.shootDirection += directionDelta;
     self.shoot = true;
 `),
-        
+
         [CodeFile.tutorial2]: createTemplateCode("",
 `
     // Aim at the enemy using Math.atan2 to compute the correct angle
@@ -687,7 +710,7 @@ namespace Battle {
         self.shoot = true;
     }
 `),
-        
+
         [CodeFile.tutorial3]: createTemplateCode("",
 `
     if (environment.enemy) {
@@ -695,12 +718,12 @@ namespace Battle {
         self.shoot = true;
     }
 `),
-        
+
         [CodeFile.main]: createTemplateCode("", "\n    // Code goes here\n"),
         [CodeFile.left]: createTemplateCode("", "\n    // Code goes here\n"),
         [CodeFile.right]: createTemplateCode("", "\n    // Code goes here\n"),
             };
-        
+
     class CodeManager {
         private static codeFileToKey(codeFile: CodeFile): string {
             return `cc_${CodeFile[codeFile]}`;
@@ -826,11 +849,11 @@ namespace Battle {
                                     state: self,
                                     environment,
                                 }));
-    
+
                                 vm.appendCode(callbackWrapperCode);
                                 vm.run();
                                 const resultState = JSON.parse(vm.getProperty(vm.global, argumentStringPropertyName) as string).state as RobotState;
-    
+
                                 self.shootDirection = resultState.shootDirection;
                                 self.moveDirection = resultState.moveDirection;
                                 self.move = resultState.move;
@@ -841,7 +864,7 @@ namespace Battle {
                             }
                         };
                     };
-    
+
                     return customInitializer;
                 }
             } catch (error) {
@@ -950,15 +973,15 @@ ${init}
  * Using the current state and information about the environment,
  * "think" determines what the robot should do next (by setting
  * self.shootDirection, self.shoot, etc.)
- * 
+ *
  * (Note: leave these annotations in place to support auto-suggest)
- * 
+ *
  * @param self {RobotState} State of the robot
  * @param environment {Environment} Information about the environment
  */
 
 function think(self, environment) {${body}}
-`;        
+`;
     }
 
     class ColiseumRoot extends React.Component<{ options: OptionBase[] }, { index: number }> {
@@ -1015,7 +1038,7 @@ function think(self, environment) {${body}}
                     folding: false,
                     minimap: { enabled: false },
                 });
-    
+
                 monaco.languages.typescript.javascriptDefaults
                     .addExtraLib(coliseumDTS, "coliseum.d.ts");
 
@@ -1079,6 +1102,9 @@ function think(self, environment) {${body}}
             <p>This is a real enemy that moves and attacks. Good luck!</p>
         </>),
         new OptionArena(),
+        new OptionChallenge("Final Boss", BehaviorBoss, <>
+            <p>You don't stand a chance...</p>
+        </>),
     ];
 
     ReactDOM.render(<ColiseumRoot options={options} />, document.getElementById("root"));
